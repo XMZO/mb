@@ -9,7 +9,7 @@ services:
       MB_ADDR: ":15000"
       MB_DB: "/data/mb.db"
     ports:
-      - "${MB_HTTP_PORT:-15000}:15000"
+      - "15000:15000"
     volumes:
       - ${MB_DATA_VOLUME:-mb-data}:/data
     healthcheck:
