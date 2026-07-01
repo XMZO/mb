@@ -637,7 +637,7 @@ func parseVPSForm(r *http.Request) (map[string]string, []diskFormRow, string, er
 		return item, diskRows, "续费价格格式不正确", nil
 	}
 	if !isSupportedCurrency(currency) {
-		return item, diskRows, "币种仅支持 CNY/USD/EUR/RUB", nil
+		return item, diskRows, "币种不受支持，请从下拉列表选择", nil
 	}
 
 	billingMonths, err := normalizeBillingMonths(billingRaw, 12)

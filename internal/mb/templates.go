@@ -28,10 +28,21 @@ func mustTemplates() map[string]*template.Template {
 			return s
 		},
 		"usdToCny": func(fx fxInfo) string {
-			if !isFinitePositive(fx.EURToUSD) {
+			usd := fxRate(fx, "USD")
+			cny := fxRate(fx, "CNY")
+			if !isFinitePositive(usd) || !isFinitePositive(cny) {
 				return "-"
 			}
-			return fmt.Sprintf("%.4f", fx.EURToCNY/fx.EURToUSD)
+			return fmt.Sprintf("%.4f", cny/usd)
+		},
+		"fxRate": func(fx fxInfo, currency string) string {
+			return fxRateLabel(fx, currency)
+		},
+		"currencyOptions": func() []currencyOption {
+			return currencyOptions()
+		},
+		"manualFxCurrencies": func() []currencyOption {
+			return manualFxCurrencies()
 		},
 		"daysLabel": func(days int) string {
 			if days < 0 {

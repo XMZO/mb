@@ -156,7 +156,7 @@
 
             <div class="summary-card bg-panel mb-3">
               <div class="text-muted-2 small">
-                <div><span class="mono">1 EUR = {{printf "%.4f" .Fx.EURToUSD}} USD</span> · <span class="mono">{{printf "%.4f" .Fx.EURToCNY}} CNY</span> · <span class="mono">{{printf "%.4f" .Fx.EURToRUB}} RUB</span></div>
+                <div><span class="mono">1 EUR = {{fxRate .Fx "USD"}} USD</span> · <span class="mono">{{fxRate .Fx "CNY"}} CNY</span> · <span class="mono">{{fxRate .Fx "TRY"}} TRY</span> · <span class="mono">{{fxRate .Fx "TND"}} TND</span></div>
                 <div class="text-muted-3 mt-1">来源：{{.Fx.Source}} · 来源日期：{{if .Fx.RateDate}}{{.Fx.RateDate}}{{else}}-{{end}} · 更新：{{if .Fx.UpdatedAt}}{{.Fx.UpdatedAt}}{{else}}-{{end}}</div>
                 {{if .Fx.LastError}}<div class="text-muted-3 mt-1">最近错误：{{.Fx.LastError}}</div>{{end}}
               </div>
@@ -164,24 +164,14 @@
             </div>
 
             <div class="row g-2">
-              <div class="col-12 col-md-4">
-                <div class="field-card">
-                  <label class="form-label">1 EUR = ? USD</label>
-                  <input class="form-control mono" name="fx_eur_to_usd" placeholder='{{printf "%.4f" .Fx.EURToUSD}}'>
+              {{range manualFxCurrencies}}
+                <div class="col-6 col-md-4 col-xl-3">
+                  <div class="field-card">
+                    <label class="form-label">1 EUR = ? {{.Code}}</label>
+                    <input class="form-control mono" name="fx_rate_{{.Code}}" placeholder='{{fxRate $.Fx .Code}}'>
+                  </div>
                 </div>
-              </div>
-              <div class="col-12 col-md-4">
-                <div class="field-card">
-                  <label class="form-label">1 EUR = ? CNY</label>
-                  <input class="form-control mono" name="fx_eur_to_cny" placeholder='{{printf "%.4f" .Fx.EURToCNY}}'>
-                </div>
-              </div>
-              <div class="col-12 col-md-4">
-                <div class="field-card">
-                  <label class="form-label">1 EUR = ? RUB</label>
-                  <input class="form-control mono" name="fx_eur_to_rub" placeholder='{{printf "%.4f" .Fx.EURToRUB}}'>
-                </div>
-              </div>
+              {{end}}
               <div class="col-12">
                 <div class="field-card">
                   <label class="form-label">Favicon 链接（https）</label>
@@ -308,13 +298,13 @@
                   <input class="form-control mono" name="email_host" value='{{.EmailHost}}' placeholder="smtp.example.com">
                 </div>
               </div>
-              <div class="col-4">
+              <div class="col-12 col-md-4">
                 <div class="field-card">
                   <label class="form-label">端口</label>
                   <input class="form-control mono" name="email_port" value='{{.EmailPort}}' placeholder="587">
                 </div>
               </div>
-              <div class="col-4">
+              <div class="col-12 col-md-4">
                 <div class="field-card">
                   <label class="form-label">协议</label>
                   <select class="form-select mono" name="email_protocol">
@@ -324,7 +314,7 @@
                   </select>
                 </div>
               </div>
-              <div class="col-4">
+              <div class="col-12 col-md-4">
                 <div class="field-card">
                   <label class="form-label">加密</label>
                   <select class="form-select mono" name="email_encryption">
@@ -333,6 +323,16 @@
                     <option value="ssl" {{if eq .EmailEncryption "ssl"}}selected{{end}}>SSL/TLS</option>
                     <option value="none" {{if eq .EmailEncryption "none"}}selected{{end}}>无</option>
                   </select>
+                </div>
+              </div>
+              <div class="col-12">
+                <div class="field-card">
+                  <label class="form-label">认证方式</label>
+                  <select class="form-select mono" name="email_auth">
+                    <option value="plain" {{if or (eq .EmailAuth "") (eq .EmailAuth "plain")}}selected{{end}}>PLAIN（默认）</option>
+                    <option value="login" {{if eq .EmailAuth "login"}}selected{{end}}>LOGIN（Outlook / Office365 / 163 兼容）</option>
+                  </select>
+                  <div class="field-help">O365、Outlook、163 等服务商认证失败时可切换 LOGIN；加密仍按上面的 STARTTLS/SSL 设置执行。</div>
                 </div>
               </div>
             </div>

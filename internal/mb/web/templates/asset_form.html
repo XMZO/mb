@@ -79,10 +79,9 @@
                   <div class="field-card">
                     <label class="form-label">币种</label>
                     <select class="form-select mono" name="currency">
-                      <option value="CNY" {{if eq (index .Item "currency") "CNY"}}selected{{end}}>CNY</option>
-                      <option value="USD" {{if eq (index .Item "currency") "USD"}}selected{{end}}>USD</option>
-                      <option value="EUR" {{if eq (index .Item "currency") "EUR"}}selected{{end}}>EUR</option>
-                      <option value="RUB" {{if eq (index .Item "currency") "RUB"}}selected{{end}}>RUB</option>
+                      {{range currencyOptions}}
+                        <option value="{{.Code}}" {{if eq (index $.Item "currency") .Code}}selected{{end}}>{{.Code}} · {{.Name}}</option>
+                      {{end}}
                     </select>
                   </div>
                 </div>
@@ -284,10 +283,9 @@
                   <div class="field-card">
                     <label class="form-label">币种</label>
                     <select class="form-select mono" name="currency">
-                      <option value="CNY" {{if eq (index .Item "currency") "CNY"}}selected{{end}}>CNY</option>
-                      <option value="USD" {{if eq (index .Item "currency") "USD"}}selected{{end}}>USD</option>
-                      <option value="EUR" {{if eq (index .Item "currency") "EUR"}}selected{{end}}>EUR</option>
-                      <option value="RUB" {{if eq (index .Item "currency") "RUB"}}selected{{end}}>RUB</option>
+                      {{range currencyOptions}}
+                        <option value="{{.Code}}" {{if eq (index $.Item "currency") .Code}}selected{{end}}>{{.Code}} · {{.Name}}</option>
+                      {{end}}
                     </select>
                   </div>
                 </div>

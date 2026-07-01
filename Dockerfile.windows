@@ -7,7 +7,9 @@ FROM ${WINDOWS_BASE}
 WORKDIR C:/app
 
 USER ContainerAdministrator
-RUN mkdir C:\data && icacls C:\data /grant "ContainerUser:(OI)(CI)F"
+RUN mkdir C:\data `
+    && icacls C:\app /grant "*S-1-5-93-2-2:(OI)(CI)RX" `
+    && icacls C:\data /grant "*S-1-5-93-2-2:(OI)(CI)F"
 
 COPY .docker-windows/mb.exe C:/app/mb.exe
 

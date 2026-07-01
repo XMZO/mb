@@ -94,27 +94,28 @@ func (a *app) handleSettingsAccess(w http.ResponseWriter, r *http.Request) {
 	publicShowVPSExpiry := r.FormValue("public_show_vps_expiry") == "1"
 	publicShowVPSPrice := r.FormValue("public_show_vps_price") == "1"
 	publicShowVPSNotes := r.FormValue("public_show_vps_notes") == "1"
-	eurToUSD := strings.TrimSpace(r.FormValue("fx_eur_to_usd"))
-	eurToCNY := strings.TrimSpace(r.FormValue("fx_eur_to_cny"))
-	eurToRUB := strings.TrimSpace(r.FormValue("fx_eur_to_rub"))
 	faviconURL := strings.TrimSpace(r.FormValue("favicon_url"))
+
+	renderAccessError := func(message string) {
+		vm := a.buildSettingsVM(newPublicMode, message, "")
+		vm.PublicShowTotals = publicShowTotals
+		vm.PublicShowDomainRegistrar = publicShowDomainRegistrar
+		vm.PublicShowDomainExpiry = publicShowDomainExpiry
+		vm.PublicShowDomainPrice = publicShowDomainPrice
+		vm.PublicShowDomainNotes = publicShowDomainNotes
+		vm.PublicShowVPSIP = publicShowVPSIP
+		vm.PublicShowVPSRegion = publicShowVPSRegion
+		vm.PublicShowVPSSpecs = publicShowVPSSpecs
+		vm.PublicShowVPSExpiry = publicShowVPSExpiry
+		vm.PublicShowVPSPrice = publicShowVPSPrice
+		vm.PublicShowVPSNotes = publicShowVPSNotes
+		vm.FaviconURL = faviconURL
+		a.render(w, "settings", vm)
+	}
 
 	if faviconURL != "" {
 		if err := validateFaviconURL(faviconURL); err != nil {
-			vm := a.buildSettingsVM(newPublicMode, "Favicon 链接无效（仅支持 https 完整链接）", "")
-			vm.PublicShowTotals = publicShowTotals
-			vm.PublicShowDomainRegistrar = publicShowDomainRegistrar
-			vm.PublicShowDomainExpiry = publicShowDomainExpiry
-			vm.PublicShowDomainPrice = publicShowDomainPrice
-			vm.PublicShowDomainNotes = publicShowDomainNotes
-			vm.PublicShowVPSIP = publicShowVPSIP
-			vm.PublicShowVPSRegion = publicShowVPSRegion
-			vm.PublicShowVPSSpecs = publicShowVPSSpecs
-			vm.PublicShowVPSExpiry = publicShowVPSExpiry
-			vm.PublicShowVPSPrice = publicShowVPSPrice
-			vm.PublicShowVPSNotes = publicShowVPSNotes
-			vm.FaviconURL = faviconURL
-			a.render(w, "settings", vm)
+			renderAccessError("Favicon 链接无效（仅支持 https 完整链接）")
 			return
 		}
 	}
@@ -157,95 +158,34 @@ func (a *app) handleSettingsAccess(w http.ResponseWriter, r *http.Request) {
 	notice := "已保存设置"
 	manualUpdated := false
 	errInvalidRate := errors.New("invalid rate")
-	parseAndStore := func(raw, key string) (bool, error) {
+	rates := a.getFxRates()
+	parseManualRate := func(raw string) (float64, bool, error) {
 		if raw == "" {
-			return false, nil
+			return 0, false, nil
 		}
 		val, err := strconv.ParseFloat(raw, 64)
 		if err != nil || !isFinitePositive(val) {
-			return false, errInvalidRate
+			return 0, false, errInvalidRate
 		}
-		if err := setSetting(a.db, key, strconv.FormatFloat(val, 'f', -1, 64)); err != nil {
-			return false, err
-		}
-		manualUpdated = true
-		return true, nil
+		return val, true, nil
 	}
-	if eurToUSD != "" {
-		if _, err := parseAndStore(eurToUSD, settingFxEURToUSD); err != nil {
+	for _, currency := range manualFxCurrencies() {
+		rate, changed, err := parseManualRate(strings.TrimSpace(r.FormValue("fx_rate_" + currency.Code)))
+		if err != nil {
 			if !errors.Is(err, errInvalidRate) {
 				a.serverError(w, err)
 				return
 			}
-			vm := a.buildSettingsVM(newPublicMode, "手动汇率格式不正确（需要正数）", "")
-			vm.PublicShowTotals = publicShowTotals
-			vm.PublicShowDomainRegistrar = publicShowDomainRegistrar
-			vm.PublicShowDomainExpiry = publicShowDomainExpiry
-			vm.PublicShowDomainPrice = publicShowDomainPrice
-			vm.PublicShowDomainNotes = publicShowDomainNotes
-			vm.PublicShowVPSIP = publicShowVPSIP
-			vm.PublicShowVPSRegion = publicShowVPSRegion
-			vm.PublicShowVPSSpecs = publicShowVPSSpecs
-			vm.PublicShowVPSExpiry = publicShowVPSExpiry
-			vm.PublicShowVPSPrice = publicShowVPSPrice
-			vm.PublicShowVPSNotes = publicShowVPSNotes
-			vm.FaviconURL = faviconURL
-			a.render(w, "settings", vm)
+			renderAccessError("手动汇率格式不正确（需要正数）")
 			return
 		}
-	}
-	if eurToCNY != "" {
-		if _, err := parseAndStore(eurToCNY, settingFxEURToCNY); err != nil {
-			if !errors.Is(err, errInvalidRate) {
-				a.serverError(w, err)
-				return
-			}
-			vm := a.buildSettingsVM(newPublicMode, "手动汇率格式不正确（需要正数）", "")
-			vm.PublicShowTotals = publicShowTotals
-			vm.PublicShowDomainRegistrar = publicShowDomainRegistrar
-			vm.PublicShowDomainExpiry = publicShowDomainExpiry
-			vm.PublicShowDomainPrice = publicShowDomainPrice
-			vm.PublicShowDomainNotes = publicShowDomainNotes
-			vm.PublicShowVPSIP = publicShowVPSIP
-			vm.PublicShowVPSRegion = publicShowVPSRegion
-			vm.PublicShowVPSSpecs = publicShowVPSSpecs
-			vm.PublicShowVPSExpiry = publicShowVPSExpiry
-			vm.PublicShowVPSPrice = publicShowVPSPrice
-			vm.PublicShowVPSNotes = publicShowVPSNotes
-			vm.FaviconURL = faviconURL
-			a.render(w, "settings", vm)
-			return
-		}
-	}
-	if eurToRUB != "" {
-		if _, err := parseAndStore(eurToRUB, settingFxEURToRUB); err != nil {
-			if !errors.Is(err, errInvalidRate) {
-				a.serverError(w, err)
-				return
-			}
-			vm := a.buildSettingsVM(newPublicMode, "手动汇率格式不正确（需要正数）", "")
-			vm.PublicShowTotals = publicShowTotals
-			vm.PublicShowDomainRegistrar = publicShowDomainRegistrar
-			vm.PublicShowDomainExpiry = publicShowDomainExpiry
-			vm.PublicShowDomainPrice = publicShowDomainPrice
-			vm.PublicShowDomainNotes = publicShowDomainNotes
-			vm.PublicShowVPSIP = publicShowVPSIP
-			vm.PublicShowVPSRegion = publicShowVPSRegion
-			vm.PublicShowVPSSpecs = publicShowVPSSpecs
-			vm.PublicShowVPSExpiry = publicShowVPSExpiry
-			vm.PublicShowVPSPrice = publicShowVPSPrice
-			vm.PublicShowVPSNotes = publicShowVPSNotes
-			vm.FaviconURL = faviconURL
-			a.render(w, "settings", vm)
-			return
+		if changed {
+			rates[currency.Code] = rate
+			manualUpdated = true
 		}
 	}
 	if manualUpdated {
-		if err := setSetting(a.db, settingFxUpdatedAt, time.Now().In(time.Local).Format(time.RFC3339)); err != nil {
-			a.serverError(w, err)
-			return
-		}
-		if err := setSetting(a.db, settingFxSource, fxSourceManual); err != nil {
+		if err := storeFxRates(a.db, rates, time.Now().In(time.Local).Format("2006-01-02"), fxSourceManual); err != nil {
 			a.serverError(w, err)
 			return
 		}
@@ -402,6 +342,7 @@ func (a *app) buildSettingsVM(publicMode bool, errMsg, notice string) settingsVM
 		EmailHost:                 mustGetStringSetting(a.db, settingEmailHost, ""),
 		EmailPort:                 mustGetStringSetting(a.db, settingEmailPort, ""),
 		EmailEncryption:           mustGetStringSetting(a.db, settingEmailEncrypt, "auto"),
+		EmailAuth:                 mustGetStringSetting(a.db, settingEmailAuth, "plain"),
 		EmailUser:                 mustGetStringSetting(a.db, settingEmailUser, ""),
 		EmailPass:                 mustGetStringSetting(a.db, settingEmailPass, ""),
 		EmailFrom:                 mustGetStringSetting(a.db, settingEmailFrom, ""),

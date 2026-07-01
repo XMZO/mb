@@ -16,9 +16,10 @@ import (
 )
 
 func (a *app) getFxInfo() fxInfo {
-	eurToUSD := mustGetFloatSetting(a.db, settingFxEURToUSD, defaultFxEURToUSD)
-	eurToCNY := mustGetFloatSetting(a.db, settingFxEURToCNY, defaultFxEURToCNY)
-	eurToRUB := mustGetFloatSetting(a.db, settingFxEURToRUB, defaultFxEURToRUB)
+	rates := a.getFxRates()
+	eurToUSD := rates["USD"]
+	eurToCNY := rates["CNY"]
+	eurToRUB := rates["RUB"]
 	updatedAt, _, _ := getSetting(a.db, settingFxUpdatedAt)
 	rateDate, _, _ := getSetting(a.db, settingFxRateDate)
 	lastAttemptAt, _, _ := getSetting(a.db, settingFxLastAttempt)
@@ -31,6 +32,7 @@ func (a *app) getFxInfo() fxInfo {
 		EURToUSD:      eurToUSD,
 		EURToCNY:      eurToCNY,
 		EURToRUB:      eurToRUB,
+		Rates:         rates,
 		UpdatedAt:     updatedAt,
 		RateDate:      rateDate,
 		AutoUpdate:    mustGetBoolSetting(a.db, settingFxAutoUpdate, true),
@@ -38,6 +40,51 @@ func (a *app) getFxInfo() fxInfo {
 		LastAttemptAt: lastAttemptAt,
 		LastError:     lastErr,
 	}
+}
+func (a *app) getFxRates() map[string]float64 {
+	rates := defaultFxRates()
+	if raw, ok, err := getSetting(a.db, settingFxRatesJSON); err == nil && ok {
+		for code, rate := range parseFxRatesJSON(raw) {
+			if isSupportedCurrency(code) && isFinitePositive(rate) {
+				rates[code] = rate
+			}
+		}
+	}
+
+	legacy := map[string]string{
+		"USD": settingFxEURToUSD,
+		"CNY": settingFxEURToCNY,
+		"RUB": settingFxEURToRUB,
+	}
+	for code, key := range legacy {
+		if rate := mustGetFloatSetting(a.db, key, 0); isFinitePositive(rate) {
+			rates[code] = rate
+		}
+	}
+	rates["EUR"] = 1
+	return rates
+}
+func defaultFxRates() map[string]float64 {
+	return map[string]float64{
+		"EUR": 1,
+		"USD": defaultFxEURToUSD,
+		"CNY": defaultFxEURToCNY,
+		"RUB": defaultFxEURToRUB,
+	}
+}
+func parseFxRatesJSON(raw string) map[string]float64 {
+	var rates map[string]float64
+	if err := json.Unmarshal([]byte(strings.TrimSpace(raw)), &rates); err != nil {
+		return nil
+	}
+	out := make(map[string]float64, len(rates))
+	for code, rate := range rates {
+		code = strings.ToUpper(strings.TrimSpace(code))
+		if isSupportedCurrency(code) && isFinitePositive(rate) {
+			out[code] = rate
+		}
+	}
+	return out
 }
 func (a *app) maybeAutoUpdateFx(fx fxInfo) {
 	if fx.LastAttemptAt != "" {
@@ -71,9 +118,9 @@ func updateFxFromECB(ctx context.Context, db *sql.DB) error {
 	_ = setSetting(db, settingFxLastAttempt, time.Now().In(time.Local).Format(time.RFC3339))
 	_ = setSetting(db, settingFxLastError, "")
 
-	usd, cny, rub, rateDate, err := fetchFxFromECB(ctx)
-	if err == nil && isFinitePositive(usd) && isFinitePositive(cny) && isFinitePositive(rub) {
-		return storeFxRates(db, usd, cny, rub, rateDate, fxSourceECB)
+	rates, rateDate, err := fetchFxFromECB(ctx)
+	if err == nil && hasAllSupportedFxRates(rates) {
+		return storeFxRates(db, rates, rateDate, fxSourceECB)
 	}
 	if fallbackErr := updateFxFromOpenER(ctx, db); fallbackErr == nil {
 		return nil
@@ -82,14 +129,25 @@ func updateFxFromECB(ctx context.Context, db *sql.DB) error {
 		return fallbackErr
 	}
 }
-func storeFxRates(db *sql.DB, usd, cny, rub float64, rateDate, source string) error {
-	if err := setSetting(db, settingFxEURToUSD, strconv.FormatFloat(usd, 'f', -1, 64)); err != nil {
+func storeFxRates(db *sql.DB, rates map[string]float64, rateDate, source string) error {
+	normalized := normalizeFxRates(rates)
+	if !hasCoreFxRates(normalized) {
+		return errors.New("汇率缺少核心币种 USD/CNY/RUB")
+	}
+	ratesJSON, err := json.Marshal(normalized)
+	if err != nil {
 		return err
 	}
-	if err := setSetting(db, settingFxEURToCNY, strconv.FormatFloat(cny, 'f', -1, 64)); err != nil {
+	if err := setSetting(db, settingFxRatesJSON, string(ratesJSON)); err != nil {
 		return err
 	}
-	if err := setSetting(db, settingFxEURToRUB, strconv.FormatFloat(rub, 'f', -1, 64)); err != nil {
+	if err := setSetting(db, settingFxEURToUSD, strconv.FormatFloat(normalized["USD"], 'f', -1, 64)); err != nil {
+		return err
+	}
+	if err := setSetting(db, settingFxEURToCNY, strconv.FormatFloat(normalized["CNY"], 'f', -1, 64)); err != nil {
+		return err
+	}
+	if err := setSetting(db, settingFxEURToRUB, strconv.FormatFloat(normalized["RUB"], 'f', -1, 64)); err != nil {
 		return err
 	}
 	if err := setSetting(db, settingFxUpdatedAt, time.Now().In(time.Local).Format(time.RFC3339)); err != nil {
@@ -104,10 +162,42 @@ func storeFxRates(db *sql.DB, usd, cny, rub float64, rateDate, source string) er
 	_ = setSetting(db, settingFxLastError, "")
 	return nil
 }
-func fetchFxFromECB(ctx context.Context) (float64, float64, float64, string, error) {
+func normalizeFxRates(rates map[string]float64) map[string]float64 {
+	out := make(map[string]float64, len(rates)+1)
+	out["EUR"] = 1
+	for _, code := range supportedCurrencyCodes() {
+		if code == "EUR" {
+			continue
+		}
+		if rate := rates[code]; isFinitePositive(rate) {
+			out[code] = rate
+		}
+	}
+	return out
+}
+func hasCoreFxRates(rates map[string]float64) bool {
+	for _, code := range []string{"USD", "CNY", "RUB"} {
+		if !isFinitePositive(rates[code]) {
+			return false
+		}
+	}
+	return true
+}
+func hasAllSupportedFxRates(rates map[string]float64) bool {
+	for _, code := range supportedCurrencyCodes() {
+		if code == "EUR" {
+			continue
+		}
+		if !isFinitePositive(rates[code]) {
+			return false
+		}
+	}
+	return true
+}
+func fetchFxFromECB(ctx context.Context) (map[string]float64, string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml", nil)
 	if err != nil {
-		return 0, 0, 0, "", err
+		return nil, "", err
 	}
 	req.Header.Set("User-Agent", "mb/1.0")
 	client := &http.Client{
@@ -128,53 +218,49 @@ func fetchFxFromECB(ctx context.Context) (float64, float64, float64, string, err
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return 0, 0, 0, "", err
+		return nil, "", err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode/100 != 2 {
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
-		return 0, 0, 0, "", fmt.Errorf("ECB HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
+		return nil, "", fmt.Errorf("ECB HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
-		return 0, 0, 0, "", err
+		return nil, "", err
 	}
 
 	var env ecbEnvelope
 	if err := xml.Unmarshal(body, &env); err != nil {
-		return 0, 0, 0, "", err
+		return nil, "", err
 	}
 	if len(env.Cube.Cubes) == 0 {
-		return 0, 0, 0, "", errors.New("ECB response missing rates")
+		return nil, "", errors.New("ECB response missing rates")
 	}
 	c := env.Cube.Cubes[0]
-	var usd, cny, rub float64
+	rates := map[string]float64{"EUR": 1}
 	for _, r := range c.Rates {
-		switch strings.ToUpper(strings.TrimSpace(r.Currency)) {
-		case "USD":
-			usd = r.Rate
-		case "CNY":
-			cny = r.Rate
-		case "RUB":
-			rub = r.Rate
+		code := strings.ToUpper(strings.TrimSpace(r.Currency))
+		if isSupportedCurrency(code) && isFinitePositive(r.Rate) {
+			rates[code] = r.Rate
 		}
 	}
-	if !isFinitePositive(usd) || !isFinitePositive(cny) || !isFinitePositive(rub) {
-		return 0, 0, 0, "", errors.New("ECB rates missing USD/CNY/RUB")
+	if !hasCoreFxRates(rates) {
+		return nil, "", errors.New("ECB rates missing USD/CNY/RUB")
 	}
-	return usd, cny, rub, strings.TrimSpace(c.Time), nil
+	return rates, strings.TrimSpace(c.Time), nil
 }
 func updateFxFromOpenER(ctx context.Context, db *sql.DB) error {
-	usd, cny, rub, rateDate, err := fetchFxFromOpenER(ctx)
+	rates, rateDate, err := fetchFxFromOpenER(ctx)
 	if err != nil {
 		return err
 	}
-	return storeFxRates(db, usd, cny, rub, rateDate, fxSourceOpenER)
+	return storeFxRates(db, rates, rateDate, fxSourceOpenER)
 }
-func fetchFxFromOpenER(ctx context.Context) (float64, float64, float64, string, error) {
+func fetchFxFromOpenER(ctx context.Context) (map[string]float64, string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://open.er-api.com/v6/latest/EUR", nil)
 	if err != nil {
-		return 0, 0, 0, "", err
+		return nil, "", err
 	}
 	req.Header.Set("User-Agent", "mb/1.0")
 	client := &http.Client{
@@ -195,42 +281,48 @@ func fetchFxFromOpenER(ctx context.Context) (float64, float64, float64, string, 
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return 0, 0, 0, "", err
+		return nil, "", err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode/100 != 2 {
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
-		return 0, 0, 0, "", fmt.Errorf("OpenER HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
+		return nil, "", fmt.Errorf("OpenER HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
-		return 0, 0, 0, "", err
+		return nil, "", err
 	}
 
 	var respData openERResponse
 	if err := json.Unmarshal(body, &respData); err != nil {
-		return 0, 0, 0, "", err
+		return nil, "", err
 	}
 	if strings.ToLower(respData.Result) != "success" {
 		msg := strings.TrimSpace(respData.ErrorType)
 		if msg == "" {
 			msg = "open.er-api.com response not success"
 		}
-		return 0, 0, 0, "", errors.New(msg)
+		return nil, "", errors.New(msg)
 	}
 	if base := strings.ToUpper(strings.TrimSpace(respData.BaseCode)); base != "" && base != "EUR" {
-		return 0, 0, 0, "", fmt.Errorf("open.er-api.com base %s", base)
+		return nil, "", fmt.Errorf("open.er-api.com base %s", base)
 	}
 	if respData.Rates == nil {
-		return 0, 0, 0, "", errors.New("open.er-api.com missing rates")
+		return nil, "", errors.New("open.er-api.com missing rates")
 	}
-	usd := respData.Rates["USD"]
-	cny := respData.Rates["CNY"]
-	rub := respData.Rates["RUB"]
-	if !isFinitePositive(usd) || !isFinitePositive(cny) || !isFinitePositive(rub) {
-		return 0, 0, 0, "", errors.New("open.er-api.com rates missing USD/CNY/RUB")
+	rates := map[string]float64{"EUR": 1}
+	for _, code := range supportedCurrencyCodes() {
+		if code == "EUR" {
+			continue
+		}
+		if rate := respData.Rates[code]; isFinitePositive(rate) {
+			rates[code] = rate
+		}
 	}
-	return usd, cny, rub, strings.TrimSpace(respData.TimeLastUpdateUTC), nil
+	if !hasCoreFxRates(rates) {
+		return nil, "", errors.New("open.er-api.com rates missing USD/CNY/RUB")
+	}
+	return rates, strings.TrimSpace(respData.TimeLastUpdateUTC), nil
 }
 func (a *app) handleFxUpdate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {

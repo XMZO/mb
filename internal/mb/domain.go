@@ -646,7 +646,7 @@ func parseDomainForm(r *http.Request) (map[string]string, string, error) {
 		return item, "续费价格格式不正确", nil
 	}
 	if !isSupportedCurrency(currency) {
-		return item, "币种仅支持 CNY/USD/EUR/RUB", nil
+		return item, "币种不受支持，请从下拉列表选择", nil
 	}
 	item["price_f"] = strconv.FormatFloat(price, 'f', -1, 64)
 	return item, "", nil

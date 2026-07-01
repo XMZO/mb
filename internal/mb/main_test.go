@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/smtp"
 	"net/url"
 	"path/filepath"
 	"regexp"
@@ -109,6 +110,25 @@ func TestApplyBackupRoundTrip(t *testing.T) {
 	}
 	if got.VPS[0].Vendor != "TestVendor" {
 		t.Errorf("vendor mismatch: got %q", got.VPS[0].Vendor)
+	}
+}
+
+func TestCurrencySupportIncludesTRYAndTND(t *testing.T) {
+	for _, code := range []string{"TRY", "TND", "GBP", "JPY", "ZAR"} {
+		if !isSupportedCurrency(code) {
+			t.Fatalf("expected %s to be supported", code)
+		}
+	}
+
+	fx := fxInfo{Rates: map[string]float64{
+		"EUR": 1,
+		"USD": 1.2,
+		"TRY": 40,
+		"TND": 3.4,
+	}}
+	got := convertMoney(400, "TRY", "TND", fx)
+	if got < 33.999 || got > 34.001 {
+		t.Fatalf("TRY to TND conversion: want 34, got %v", got)
 	}
 }
 
@@ -392,5 +412,78 @@ func TestSettingsCacheUpdatesAndInvalidates(t *testing.T) {
 	got, ok, err = getSetting(a.db, "cache_test")
 	if err != nil || !ok || got != "two" {
 		t.Fatalf("cache should reload after invalidate: got=%q ok=%v err=%v", got, ok, err)
+	}
+}
+
+func TestEmailAuthOptions(t *testing.T) {
+	values := url.Values{
+		"email_enabled":     {"1"},
+		"email_days_before": {"30"},
+		"email_to":          {"receiver@example.com"},
+		"email_from":        {"sender@example.com"},
+		"email_user":        {"sender@example.com"},
+		"email_pass":        {"secret"},
+		"email_host":        {"smtp.office365.com"},
+		"email_port":        {"587"},
+		"email_protocol":    {"smtp"},
+		"email_encryption":  {"starttls"},
+		"email_auth":        {"login"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/admin/settings", strings.NewReader(values.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	form, errMsg := parseEmailSettingsForm(req)
+	if errMsg != "" {
+		t.Fatalf("parseEmailSettingsForm: %s", errMsg)
+	}
+	cfg, err := buildEmailConfig(form)
+	if err != nil {
+		t.Fatalf("buildEmailConfig: %v", err)
+	}
+	if cfg.Auth != "login" {
+		t.Fatalf("auth: want login, got %q", cfg.Auth)
+	}
+
+	auth := smtpAuth(cfg)
+	proto, resp, err := auth.Start(&smtp.ServerInfo{Name: "smtp.office365.com", TLS: true})
+	if err != nil {
+		t.Fatalf("login auth Start: %v", err)
+	}
+	if proto != "LOGIN" || resp != nil {
+		t.Fatalf("login auth Start: proto=%q resp=%q", proto, resp)
+	}
+	if got, err := auth.Next([]byte("Username:"), true); err != nil || string(got) != "sender@example.com" {
+		t.Fatalf("login auth username: got=%q err=%v", got, err)
+	}
+	if got, err := auth.Next([]byte("Password:"), true); err != nil || string(got) != "secret" {
+		t.Fatalf("login auth password: got=%q err=%v", got, err)
+	}
+}
+
+func TestPlainSMTPAuthRequiresTLSUnlessExplicitNone(t *testing.T) {
+	auth := smtpAuth(emailConfig{
+		Host:       "smtp.example.com",
+		Encryption: "auto",
+		Auth:       "plain",
+		Username:   "user",
+		Password:   "pass",
+	})
+	if _, _, err := auth.Start(&smtp.ServerInfo{Name: "smtp.example.com", TLS: false}); err == nil {
+		t.Fatalf("plain auth should reject non-TLS server unless encryption is explicitly none")
+	}
+
+	auth = smtpAuth(emailConfig{
+		Host:       "smtp.example.com",
+		Encryption: "none",
+		Auth:       "plain",
+		Username:   "user",
+		Password:   "pass",
+	})
+	proto, resp, err := auth.Start(&smtp.ServerInfo{Name: "smtp.example.com", TLS: false})
+	if err != nil {
+		t.Fatalf("explicit none should allow plaintext auth: %v", err)
+	}
+	if proto != "PLAIN" || string(resp) != "\x00user\x00pass" {
+		t.Fatalf("plain auth payload mismatch: proto=%q resp=%q", proto, resp)
 	}
 }

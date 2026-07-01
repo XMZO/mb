@@ -30,9 +30,10 @@
 
   <div class="fxbar mb-3">
     <div class="text-muted-2 small">
-      <span class="mono">1 EUR = {{printf "%.4f" .Fx.EURToUSD}} USD</span> ·
-      <span class="mono">{{printf "%.4f" .Fx.EURToCNY}} CNY</span> ·
-      <span class="mono">{{printf "%.4f" .Fx.EURToRUB}} RUB</span> ·
+      <span class="mono">1 EUR = {{fxRate .Fx "USD"}} USD</span> ·
+      <span class="mono">{{fxRate .Fx "CNY"}} CNY</span> ·
+      <span class="mono">{{fxRate .Fx "TRY"}} TRY</span> ·
+      <span class="mono">{{fxRate .Fx "TND"}} TND</span> ·
       <span class="mono">1 USD ≈ {{usdToCny .Fx}} CNY</span>
       <span class="text-muted-3">· 来源 {{.Fx.Source}}{{if .Fx.RateDate}} · {{.Fx.RateDate}}{{end}}</span>
       {{if .Fx.LastError}}<span class="text-muted-3"> · 最近错误：{{.Fx.LastError}}</span>{{end}}
@@ -40,10 +41,9 @@
     <div class="fx-base">
       <label class="text-muted-3 small mb-0" for="baseCurrency">统计币种</label>
       <select id="baseCurrency" class="form-select form-select-sm mono wauto">
-        <option value="CNY" {{if eq .BaseCurrency "CNY"}}selected{{end}}>CNY</option>
-        <option value="USD" {{if eq .BaseCurrency "USD"}}selected{{end}}>USD</option>
-        <option value="EUR" {{if eq .BaseCurrency "EUR"}}selected{{end}}>EUR</option>
-        <option value="RUB" {{if eq .BaseCurrency "RUB"}}selected{{end}}>RUB</option>
+        {{range currencyOptions}}
+          <option value="{{.Code}}" {{if eq $.BaseCurrency .Code}}selected{{end}}>{{.Code}}</option>
+        {{end}}
       </select>
     </div>
   </div>

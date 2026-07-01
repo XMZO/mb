@@ -23,6 +23,7 @@ const (
 	settingFxEURToUSD                = "fx_eur_to_usd"
 	settingFxEURToCNY                = "fx_eur_to_cny"
 	settingFxEURToRUB                = "fx_eur_to_rub"
+	settingFxRatesJSON               = "fx_rates_json"
 	settingFxUpdatedAt               = "fx_updated_at"
 	settingFxRateDate                = "fx_rate_date"
 	settingFxLastAttempt             = "fx_last_attempt_at"
@@ -50,6 +51,7 @@ const (
 	settingEmailHost                 = "email_host"
 	settingEmailPort                 = "email_port"
 	settingEmailEncrypt              = "email_encryption"
+	settingEmailAuth                 = "email_auth"
 	settingEmailUser                 = "email_user"
 	settingEmailPass                 = "email_pass"
 	settingEmailFrom                 = "email_from"
@@ -231,6 +233,7 @@ type fxInfo struct {
 	EURToUSD      float64
 	EURToCNY      float64
 	EURToRUB      float64
+	Rates         map[string]float64
 	UpdatedAt     string
 	RateDate      string
 	AutoUpdate    bool
@@ -303,6 +306,7 @@ type settingsVM struct {
 	EmailHost                 string
 	EmailPort                 string
 	EmailEncryption           string
+	EmailAuth                 string
 	EmailUser                 string
 	EmailPass                 string
 	EmailFrom                 string
@@ -330,6 +334,7 @@ type emailSettingsForm struct {
 	Host          string
 	Port          string
 	Encryption    string
+	Auth          string
 	User          string
 	Pass          string
 	From          string
@@ -340,6 +345,7 @@ type emailConfig struct {
 	Host       string
 	Port       int
 	Encryption string
+	Auth       string
 	Username   string
 	Password   string
 	From       mail.Address

@@ -23,6 +23,7 @@ func applyEmailFormToVM(vm *settingsVM, form emailSettingsForm) {
 	vm.EmailHost = form.Host
 	vm.EmailPort = form.Port
 	vm.EmailEncryption = form.Encryption
+	vm.EmailAuth = form.Auth
 	vm.EmailUser = form.User
 	vm.EmailPass = form.Pass
 	vm.EmailFrom = form.From
@@ -47,6 +48,9 @@ func persistEmailSettings(db *sql.DB, form emailSettingsForm) error {
 	if err := setSetting(db, settingEmailEncrypt, form.Encryption); err != nil {
 		return err
 	}
+	if err := setSetting(db, settingEmailAuth, form.Auth); err != nil {
+		return err
+	}
 	if err := setSetting(db, settingEmailUser, form.User); err != nil {
 		return err
 	}
@@ -68,6 +72,7 @@ func parseEmailSettingsForm(r *http.Request) (emailSettingsForm, string) {
 		Host:       strings.TrimSpace(r.FormValue("email_host")),
 		Port:       strings.TrimSpace(r.FormValue("email_port")),
 		Encryption: strings.TrimSpace(r.FormValue("email_encryption")),
+		Auth:       strings.TrimSpace(r.FormValue("email_auth")),
 		User:       strings.TrimSpace(r.FormValue("email_user")),
 		Pass:       r.FormValue("email_pass"),
 		From:       strings.TrimSpace(r.FormValue("email_from")),
@@ -94,6 +99,12 @@ func parseEmailSettingsForm(r *http.Request) (emailSettingsForm, string) {
 		return form, "加密方式仅支持 自动/无/STARTTLS/SSL"
 	}
 	form.Encryption = encryption
+
+	auth, err := normalizeEmailAuth(form.Auth)
+	if err != nil {
+		return form, "认证方式仅支持 PLAIN/LOGIN"
+	}
+	form.Auth = auth
 
 	if form.Port != "" {
 		p, err := strconv.Atoi(form.Port)
@@ -174,6 +185,25 @@ func normalizeEmailEncryption(raw string) (string, error) {
 		return "", errors.New("invalid encryption")
 	}
 }
+func normalizeEmailAuth(raw string) (string, error) {
+	raw = strings.ToLower(strings.TrimSpace(raw))
+	if raw == "" {
+		return "plain", nil
+	}
+	switch raw {
+	case "plain", "login":
+		return raw, nil
+	default:
+		return "", errors.New("invalid auth")
+	}
+}
+func normalizeEmailAuthOrDefault(raw string) string {
+	auth, err := normalizeEmailAuth(raw)
+	if err != nil {
+		return "plain"
+	}
+	return auth
+}
 func splitHostPort(rawHost, rawPort string) (string, string) {
 	host := strings.TrimSpace(rawHost)
 	port := strings.TrimSpace(rawPort)
@@ -246,6 +276,7 @@ func buildEmailConfig(form emailSettingsForm) (emailConfig, error) {
 		Host:       host,
 		Port:       port,
 		Encryption: encryption,
+		Auth:       normalizeEmailAuthOrDefault(form.Auth),
 		Username:   strings.TrimSpace(form.User),
 		Password:   form.Pass,
 		From:       *fromAddr,
@@ -283,6 +314,7 @@ func (a *app) getEmailSettingsForm() emailSettingsForm {
 		Host:          mustGetStringSetting(a.db, settingEmailHost, ""),
 		Port:          mustGetStringSetting(a.db, settingEmailPort, ""),
 		Encryption:    mustGetStringSetting(a.db, settingEmailEncrypt, "auto"),
+		Auth:          mustGetStringSetting(a.db, settingEmailAuth, "plain"),
 		User:          mustGetStringSetting(a.db, settingEmailUser, ""),
 		Pass:          mustGetStringSetting(a.db, settingEmailPass, ""),
 		From:          mustGetStringSetting(a.db, settingEmailFrom, ""),
@@ -533,7 +565,7 @@ func sendEmail(cfg emailConfig, subject, body string) error {
 	defer client.Close()
 
 	if cfg.Username != "" {
-		auth := smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.Host)
+		auth := smtpAuth(cfg)
 		if err := client.Auth(auth); err != nil {
 			return err
 		}
@@ -561,6 +593,81 @@ func sendEmail(cfg emailConfig, subject, body string) error {
 		return err
 	}
 	return nil
+}
+func smtpAuth(cfg emailConfig) smtp.Auth {
+	allowInsecure := cfg.Encryption == "none"
+	if cfg.Auth == "login" {
+		return loginSMTPAuth(cfg.Username, cfg.Password, allowInsecure)
+	}
+	return plainSMTPAuth("", cfg.Username, cfg.Password, allowInsecure)
+}
+
+type loginAuth struct {
+	username      string
+	password      string
+	allowInsecure bool
+}
+
+func loginSMTPAuth(username, password string, allowInsecure bool) smtp.Auth {
+	return &loginAuth{username: username, password: password, allowInsecure: allowInsecure}
+}
+
+func (a *loginAuth) Start(server *smtp.ServerInfo) (string, []byte, error) {
+	if err := validateSMTPAuthSecurity(server, a.allowInsecure); err != nil {
+		return "", nil, err
+	}
+	return "LOGIN", nil, nil
+}
+
+func (a *loginAuth) Next(fromServer []byte, more bool) ([]byte, error) {
+	if !more {
+		return nil, nil
+	}
+	prompt := strings.ToLower(strings.TrimSpace(string(fromServer)))
+	if strings.Contains(prompt, "user") {
+		return []byte(a.username), nil
+	}
+	return []byte(a.password), nil
+}
+
+type plainAuthWithoutHostCheck struct {
+	identity      string
+	username      string
+	password      string
+	allowInsecure bool
+}
+
+func plainSMTPAuth(identity, username, password string, allowInsecure bool) smtp.Auth {
+	return &plainAuthWithoutHostCheck{identity: identity, username: username, password: password, allowInsecure: allowInsecure}
+}
+
+func (a *plainAuthWithoutHostCheck) Start(server *smtp.ServerInfo) (string, []byte, error) {
+	if err := validateSMTPAuthSecurity(server, a.allowInsecure); err != nil {
+		return "", nil, err
+	}
+	resp := []byte(a.identity + "\x00" + a.username + "\x00" + a.password)
+	return "PLAIN", resp, nil
+}
+
+func (a *plainAuthWithoutHostCheck) Next(_ []byte, more bool) ([]byte, error) {
+	if more {
+		return nil, errors.New("unexpected server challenge")
+	}
+	return nil, nil
+}
+func validateSMTPAuthSecurity(server *smtp.ServerInfo, allowInsecure bool) error {
+	if allowInsecure || server == nil || server.TLS || isLocalSMTPServer(server.Name) {
+		return nil
+	}
+	return errors.New("SMTP 认证需要 TLS；如确需明文认证，请将加密方式设为无")
+}
+func isLocalSMTPServer(name string) bool {
+	name = strings.Trim(strings.ToLower(strings.TrimSpace(name)), "[]")
+	if name == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(name)
+	return ip != nil && ip.IsLoopback()
 }
 func dialSMTP(cfg emailConfig) (*smtp.Client, error) {
 	addr := net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))

@@ -3,6 +3,7 @@ package mb
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	_ "modernc.org/sqlite"
@@ -240,6 +241,17 @@ func ensureDefaults(db *sql.DB, cfg config) error {
 			return err
 		}
 	}
+	if _, ok, err := getSetting(db, settingFxRatesJSON); err != nil {
+		return err
+	} else if !ok {
+		ratesJSON, err := json.Marshal(defaultFxRates())
+		if err != nil {
+			return err
+		}
+		if err := setSetting(db, settingFxRatesJSON, string(ratesJSON)); err != nil {
+			return err
+		}
+	}
 
 	if _, ok, err := getSetting(db, settingCookieSecret); err != nil {
 		return err
@@ -275,6 +287,13 @@ func ensureDefaults(db *sql.DB, cfg config) error {
 		return err
 	} else if !ok {
 		if err := setSetting(db, settingEmailEncrypt, "auto"); err != nil {
+			return err
+		}
+	}
+	if _, ok, err := getSetting(db, settingEmailAuth); err != nil {
+		return err
+	} else if !ok {
+		if err := setSetting(db, settingEmailAuth, "plain"); err != nil {
 			return err
 		}
 	}

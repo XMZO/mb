@@ -14,8 +14,8 @@ A lightweight self-hosted asset board for domains and VPS instances. It tracks r
 - VPS 资产管理:厂商、IP、地区、CPU/内存/磁盘、流量、带宽、账期、到期日、价格、备注。
 - 公开/管理双模式:可配置公开页面展示哪些字段。
 - 管理员登录:BCrypt 密码哈希、HMAC 签名 Cookie、登录限流。
-- 汇率换算:支持 USD/CNY/RUB 等币种换算,可从 ECB / open.er-api.com 更新汇率。
-- 到期提醒:按配置天数通过邮件提醒即将到期的域名和 VPS。
+- 汇率换算:支持主流与部分冷门法币（含 TRY/TND 等）换算,可从 ECB / open.er-api.com 更新汇率，也可手动补充。
+- 到期提醒:按配置天数通过邮件提醒即将到期的域名和 VPS，SMTP 支持 PLAIN / LOGIN 认证以兼容 O365、Outlook、163 等服务商。
 - 备份恢复:JSON 备份导出/导入,支持 WebDAV 推送/拉取。
 - 模块化结构:业务功能拆分到 `internal/mb` 下的多个小文件,方便增删功能。
 - 前端可替换:HTML 模板已外置到 `internal/mb/web/templates`,不再硬编码在 Go 字符串中。
@@ -26,8 +26,8 @@ A lightweight self-hosted asset board for domains and VPS instances. It tracks r
 - VPS management: vendor, IP, region, CPU/memory/disk, traffic, bandwidth, billing cycle, expiry date, price, and notes.
 - Public/admin modes: choose which fields are visible on the public page.
 - Admin login: BCrypt password hashing, HMAC-signed cookies, and login rate limiting.
-- FX conversion: supports currencies such as USD/CNY/RUB, with optional ECB / open.er-api.com updates.
-- Expiry reminders: send email reminders for upcoming domain/VPS expirations.
+- FX conversion: supports common and less-common fiat currencies including TRY/TND, with optional ECB / open.er-api.com updates and manual overrides.
+- Expiry reminders: send email reminders for upcoming domain/VPS expirations, with PLAIN / LOGIN SMTP auth for providers such as O365, Outlook, and 163.
 - Backup and restore: JSON export/import plus WebDAV push/pull.
 - Modular code layout: feature files live under `internal/mb`, making features easier to add or remove.
 - Replaceable frontend: templates live under `internal/mb/web/templates` instead of being hard-coded Go strings.
@@ -73,6 +73,12 @@ Default listen address:
 http://127.0.0.1:15000
 ```
 
+直接运行二进制或 systemd 部署时,可通过 `.env` 或真实环境变量修改监听地址:
+
+```env
+MB_ADDR=:15000
+```
+
 ### 3. 构建 / Build
 
 ```bash
@@ -110,6 +116,15 @@ docker compose pull
 docker compose up -d
 ```
 
+Docker 部署的端口只在 `docker-compose.yml` 的 `ports` 里改。默认:
+
+```yaml
+ports:
+  - "15000:15000"
+```
+
+要换宿主机端口,改左边即可,例如 `"8080:15000"`。`.env` 里的 `MB_ADDR` 是给直接运行二进制 / systemd 用的,Docker Compose 默认不需要设置它。
+
 `docker-compose.yml` 默认使用 Docker named volume `mb-data` 持久化 `/data/mb.db`。如果想把数据库放在仓库目录旁边,可在 `.env` 里改成:
 
 ```env
@@ -146,7 +161,7 @@ Configuration is read from environment variables. The app automatically loads `.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `MB_ADDR` | `:15000` | HTTP listen address |
+| `MB_ADDR` | `:15000` | HTTP listen address for direct binary/systemd runs. Docker Compose normally leaves this unset and uses `ports` instead. |
 | `MB_DB` | `./mb.db` | SQLite database path |
 | `MB_COOKIE_NAME` | `mb_admin` | Admin session cookie name |
 | `MB_ADMIN_PASSWORD` | empty | Admin password. If set, it is authoritative and takes effect after restart. If empty, a random password is generated on first initialization. |

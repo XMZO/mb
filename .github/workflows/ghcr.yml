@@ -291,6 +291,8 @@ jobs:
         if: steps.docker.outputs.available == 'true'
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
           docker build --pull --build-arg WINDOWS_BASE=${{ matrix.base }} -f Dockerfile.windows -t $env:WINDOWS_TEMP_TAG .
           docker push $env:WINDOWS_TEMP_TAG
 

@@ -5,11 +5,10 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    environment:
-      MB_ADDR: ":15000"
-      MB_DB: "/data/mb.db"
     ports:
       - "15000:15000"
+    environment:
+      MB_DB: "/data/mb.db"
     volumes:
       - ${MB_DATA_VOLUME:-mb-data}:/data
     healthcheck:
