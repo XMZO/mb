@@ -112,8 +112,10 @@ type app struct {
 }
 
 type RenderMeta struct {
-	CSPNonce  string
-	CSRFToken string
+	CSPNonce   string
+	CSRFToken  string
+	AppVersion string
+	AppCommit  string
 }
 
 type domainRow struct {

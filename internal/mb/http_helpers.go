@@ -90,7 +90,10 @@ func (a *app) renderStatus(w http.ResponseWriter, name string, data any, status 
 		a.serverError(w, fmt.Errorf("template %q not found", name))
 		return
 	}
-	data = attachRenderMeta(data, renderMetaFromWriter(w))
+	meta := renderMetaFromWriter(w)
+	meta.AppVersion = displayVersion()
+	meta.AppCommit = displayCommit()
+	data = attachRenderMeta(data, meta)
 	var buf bytes.Buffer
 	if err := t.ExecuteTemplate(&buf, name, data); err != nil {
 		a.serverError(w, err)

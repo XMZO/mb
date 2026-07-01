@@ -303,6 +303,28 @@ func TestCSPAndCSRFRenderMeta(t *testing.T) {
 	}
 }
 
+func TestRenderedVersionMeta(t *testing.T) {
+	oldVersion, oldCommit := appVersion, appCommit
+	appVersion = "v9.8.7"
+	appCommit = "1234567890abcdef"
+	t.Cleanup(func() {
+		appVersion, appCommit = oldVersion, oldCommit
+	})
+
+	a := newTestApp(t)
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/login", nil)
+	a.withCommon(http.HandlerFunc(a.handleLogin)).ServeHTTP(rr, req)
+
+	body := rr.Body.String()
+	if !strings.Contains(body, `<span class="mono">v9.8.7</span>`) {
+		t.Fatalf("rendered page missing app version: %q", body)
+	}
+	if !strings.Contains(body, `commit 1234567890ab`) {
+		t.Fatalf("rendered page missing short commit: %q", body)
+	}
+}
+
 func TestCSRFRejectsMissingToken(t *testing.T) {
 	a := newTestApp(t)
 	rr := httptest.NewRecorder()
