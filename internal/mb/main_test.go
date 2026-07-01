@@ -1,6 +1,7 @@
 package mb
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"net/http"
@@ -342,6 +343,35 @@ func TestRenderedVersionMeta(t *testing.T) {
 	}
 	if !strings.Contains(body, `commit 1234567890ab`) {
 		t.Fatalf("rendered page missing short commit: %q", body)
+	}
+}
+
+func TestDashboardAdminFormsRenderCSRFInsideRows(t *testing.T) {
+	templates := mustTemplates()
+	vm := dashboardVM{
+		RenderMeta: RenderMeta{
+			CSPNonce:   "nonce-test",
+			CSRFToken:  "csrf-test",
+			AppVersion: "test",
+		},
+		IsAdmin:        true,
+		Fx:             fxInfo{Rates: defaultFxRates(), Source: fxSourceManual},
+		BaseCurrency:   "USD",
+		BaseSymbol:     "$",
+		ShowTotals:     true,
+		Domains:        []domainRow{{ID: 1, Domain: "example.com", Registrar: "test", ExpiresAt: "2030-01-01", DaysLeft: 30, Currency: "USD", DaysBadgeClass: "text-bg-secondary"}},
+		VPS:            []vpsRow{{ID: 1, Vendor: "test-vps", IP: "127.0.0.1", Region: "local", ExpiresAt: "2030-01-01", DaysLeft: 30, Currency: "USD", BillingMonths: 12, DaysBadgeClass: "text-bg-secondary"}},
+		FaviconURL:     "",
+		PublicMode:     false,
+		VPSTotalBase:   0,
+		GrandTotalBase: 0,
+	}
+	var buf bytes.Buffer
+	if err := templates["dashboard"].ExecuteTemplate(&buf, "dashboard", vm); err != nil {
+		t.Fatalf("dashboard render: %v", err)
+	}
+	if !strings.Contains(buf.String(), `value="csrf-test"`) {
+		t.Fatalf("dashboard admin forms missing csrf token")
 	}
 }
 
