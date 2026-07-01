@@ -212,9 +212,26 @@ jobs:
         run: |
           $imageName = "ghcr.io/$($env:GITHUB_REPOSITORY.ToLowerInvariant())"
           "IMAGE_NAME=$imageName" >> $env:GITHUB_ENV
-          "WINDOWS_TEMP_TAG=$imageName:ci-$($env:GITHUB_SHA)-${{ matrix.artifact }}" >> $env:GITHUB_ENV
+          "WINDOWS_TEMP_TAG=${imageName}:ci-$($env:GITHUB_SHA)-${{ matrix.artifact }}" >> $env:GITHUB_ENV
+
+      - name: Check Docker availability
+        id: docker
+        shell: pwsh
+        run: |
+          if (Get-Command docker -ErrorAction SilentlyContinue) {
+            "available=true" >> $env:GITHUB_OUTPUT
+            docker version
+          } else {
+            "available=false" >> $env:GITHUB_OUTPUT
+            if ("${{ matrix.optional }}" -eq "true") {
+              Write-Warning "Docker is not available on this optional runner; skipping ${{ matrix.platform }} image."
+            } else {
+              throw "Docker is required to build the non-optional ${{ matrix.platform }} image."
+            }
+          }
 
       - name: Build Windows binary for image
+        if: steps.docker.outputs.available == 'true'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force .docker-windows | Out-Null
@@ -224,6 +241,7 @@ jobs:
           go build -trimpath -ldflags="-s -w -buildid=" -o .docker-windows\mb.exe .
 
       - name: Log in to GHCR
+        if: steps.docker.outputs.available == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -231,13 +249,14 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Windows image
+        if: steps.docker.outputs.available == 'true'
         shell: pwsh
         run: |
-          docker version
           docker build --pull --build-arg WINDOWS_BASE=${{ matrix.base }} -f Dockerfile.windows -t $env:WINDOWS_TEMP_TAG .
           docker push $env:WINDOWS_TEMP_TAG
 
       - name: Export digest
+        if: steps.docker.outputs.available == 'true'
         shell: pwsh
         run: |
           $digestRef = docker image inspect --format='{{index .RepoDigests 0}}' $env:WINDOWS_TEMP_TAG
@@ -250,6 +269,7 @@ jobs:
           New-Item -ItemType File -Force -Path (Join-Path $digestDir $digest) | Out-Null
 
       - name: Upload digest
+        if: steps.docker.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: digests-${{ matrix.artifact }}
