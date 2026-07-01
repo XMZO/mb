@@ -21,16 +21,23 @@ jobs:
   test:
     name: Test (${{ matrix.name }})
     runs-on: ${{ matrix.runner }}
+    continue-on-error: ${{ matrix.optional }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: linux-amd64
             runner: ubuntu-24.04
+            optional: false
           - name: linux-arm64
             runner: ubuntu-24.04-arm
+            optional: false
           - name: windows-amd64
             runner: windows-2025
+            optional: false
+          - name: windows-arm64
+            runner: windows-11-arm
+            optional: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
