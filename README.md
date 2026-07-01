@@ -85,6 +85,46 @@ Windows:
 go build -o mb.exe .
 ```
 
+### 4. Docker Compose 部署 / Deploy with Docker Compose
+
+tag workflow 会把镜像推到 GHCR。推一个 `v*` tag 即可触发测试、原生 Linux amd64/arm64 镜像构建和 manifest 发布:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+镜像名默认是:
+
+```text
+ghcr.io/<owner>/<repo>:<tag>
+ghcr.io/<owner>/<repo>:latest
+```
+
+VPS 上部署:
+
+```bash
+cp .env.example .env
+# 编辑 .env: 把 MB_IMAGE 改成 ghcr.io/<owner>/<repo>:latest 或指定 tag
+docker compose pull
+docker compose up -d
+```
+
+`docker-compose.yml` 默认使用 Docker named volume `mb-data` 持久化 `/data/mb.db`。如果想把数据库放在仓库目录旁边,可在 `.env` 里改成:
+
+```env
+MB_DATA_VOLUME=./data
+```
+
+绑定宿主机目录时,容器内默认 UID/GID 是 `10001:10001`;如果遇到数据库无法写入:
+
+```bash
+mkdir -p data
+sudo chown -R 10001:10001 data
+```
+
+The compose file uses the published GHCR image and persists SQLite at `/data/mb.db`. By default it uses a named Docker volume; set `MB_DATA_VOLUME=./data` if you prefer a host bind mount.
+
 ---
 
 ## 配置 / Configuration
