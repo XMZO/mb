@@ -1,63 +1,66 @@
 {{define "dashboard"}}{{template "layout" .}}{{end}}
 {{define "content"}}
-  <div class="row g-3 mb-3">
-    <div class="col-12 col-lg-6">
-      <div class="p-3 rounded-4 bg-panel">
-        <div class="d-flex align-items-start justify-content-between gap-3">
-          <div>
-            <div class="text-muted-2 small">总年续费成本</div>
-            {{if .ShowTotals}}
-              <div class="display-6 fw-semibold">{{.BaseSymbol}} {{money .GrandTotalBase}} <span class="fs-6 text-muted-2">{{.BaseCurrency}}</span></div>
-              <div class="text-muted-2 small mt-1">域名：{{.BaseSymbol}} {{money .DomainTotalBase}} · VPS：{{.BaseSymbol}} {{money .VPSTotalBase}}</div>
-            {{else}}
-              <div class="display-6 fw-semibold">已隐藏</div>
-              <div class="text-muted-2 small mt-1">登录后查看完整统计</div>
-            {{end}}
-          </div>
-          <div class="minw-140">
-            <label class="form-label text-muted-2 small mb-1">统计币种</label>
-            <select id="baseCurrency" class="form-select form-select-sm mono">
-              <option value="CNY" {{if eq .BaseCurrency "CNY"}}selected{{end}}>CNY</option>
-              <option value="USD" {{if eq .BaseCurrency "USD"}}selected{{end}}>USD</option>
-              <option value="EUR" {{if eq .BaseCurrency "EUR"}}selected{{end}}>EUR</option>
-              <option value="RUB" {{if eq .BaseCurrency "RUB"}}selected{{end}}>RUB</option>
-            </select>
-            {{if .ShowTotals}}
-              <div class="text-muted-3 small mt-2">30 天内到期：<span class="fw-semibold">{{.AllExpiring30Total}}</span></div>
-            {{else}}
-              <div class="text-muted-3 small mt-2">30 天内到期：已隐藏</div>
-            {{end}}
-          </div>
-        </div>
-      </div>
+  <div class="kpi-strip mb-3">
+    <div class="kpi">
+      <div class="kpi-label">总年续费成本</div>
+      {{if .ShowTotals}}
+        <div class="kpi-value">{{.BaseSymbol}} {{money .GrandTotalBase}} <span class="kpi-unit">{{.BaseCurrency}}</span></div>
+        <div class="kpi-sub">域名 {{.BaseSymbol}}{{money .DomainTotalBase}} · VPS {{.BaseSymbol}}{{money .VPSTotalBase}}</div>
+      {{else}}
+        <div class="kpi-value">已隐藏</div>
+        <div class="kpi-sub">登录后查看完整统计</div>
+      {{end}}
     </div>
-    <div class="col-12 col-lg-6">
-      <div class="p-3 rounded-4 bg-panel h-100">
-        <div class="text-muted-2 small">汇率（固定/自动更新）</div>
-        <div class="mt-1">
-          <span class="mono">1 EUR = {{printf "%.4f" .Fx.EURToUSD}} USD</span>
-          <span class="text-muted-2"> · </span>
-          <span class="mono">1 EUR = {{printf "%.4f" .Fx.EURToCNY}} CNY</span>
-          <span class="text-muted-2"> · </span>
-          <span class="mono">1 EUR = {{printf "%.4f" .Fx.EURToRUB}} RUB</span>
-          <span class="text-muted-2"> · </span>
-          <span class="mono">1 USD ≈ {{usdToCny .Fx}} CNY</span>
-        </div>
-        <div class="text-muted-2 small mt-2">
-          来源：{{.Fx.Source}} · 来源日期：{{if .Fx.RateDate}}{{.Fx.RateDate}}{{else}}-{{end}} · 更新：{{if .Fx.UpdatedAt}}{{.Fx.UpdatedAt}}{{else}}-{{end}}
-          {{if .Fx.LastError}} · 最近错误：{{.Fx.LastError}}{{end}}
-        </div>
-      </div>
+    <div class="kpi">
+      <div class="kpi-label">域名数量</div>
+      <div class="kpi-value">{{len .Domains}}</div>
+      <div class="kpi-sub">30 天到期 {{.DomainExpiring30}} · 90 天 {{.DomainExpiring90}}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">VPS 数量</div>
+      <div class="kpi-value">{{len .VPS}}</div>
+      <div class="kpi-sub">30 天到期 {{.VPSExpiring30}} · 90 天 {{.VPSExpiring90}}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">30 天内到期</div>
+      {{if .ShowTotals}}<div class="kpi-value">{{.AllExpiring30Total}}</div>{{else}}<div class="kpi-value">—</div>{{end}}
+      <div class="kpi-sub">合计待续费项</div>
     </div>
   </div>
 
-  <div class="d-flex align-items-center justify-content-between mb-2">
-    <div class="d-flex align-items-center gap-2">
+  <div class="fxbar mb-3">
+    <div class="text-muted-2 small">
+      <span class="mono">1 EUR = {{printf "%.4f" .Fx.EURToUSD}} USD</span> ·
+      <span class="mono">{{printf "%.4f" .Fx.EURToCNY}} CNY</span> ·
+      <span class="mono">{{printf "%.4f" .Fx.EURToRUB}} RUB</span> ·
+      <span class="mono">1 USD ≈ {{usdToCny .Fx}} CNY</span>
+      <span class="text-muted-3">· 来源 {{.Fx.Source}}{{if .Fx.RateDate}} · {{.Fx.RateDate}}{{end}}</span>
+      {{if .Fx.LastError}}<span class="text-muted-3"> · 最近错误：{{.Fx.LastError}}</span>{{end}}
+    </div>
+    <div class="fx-base">
+      <label class="text-muted-3 small mb-0" for="baseCurrency">统计币种</label>
+      <select id="baseCurrency" class="form-select form-select-sm mono wauto">
+        <option value="CNY" {{if eq .BaseCurrency "CNY"}}selected{{end}}>CNY</option>
+        <option value="USD" {{if eq .BaseCurrency "USD"}}selected{{end}}>USD</option>
+        <option value="EUR" {{if eq .BaseCurrency "EUR"}}selected{{end}}>EUR</option>
+        <option value="RUB" {{if eq .BaseCurrency "RUB"}}selected{{end}}>RUB</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="tabs mb-3" role="tablist">
+    <button type="button" class="tab is-active" data-tab="domain">米表（域名）<span class="tab-count">{{len .Domains}}</span></button>
+    <button type="button" class="tab" data-tab="vps">VPS（服务器）<span class="tab-count">{{len .VPS}}</span></button>
+  </div>
+
+  <div class="tab-panel" data-panel="domain">
+  <div class="section-head">
+    <div class="section-title">
       <h5 class="mb-0">米表（域名）</h5>
       {{if .IsAdmin}}<span class="text-muted-3 small">拖动行排序</span>{{end}}
     </div>
     {{if .IsAdmin}}
-      <div class="d-flex gap-2">
+      <div class="section-actions">
         <div class="dropdown">
           <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">排序</button>
           <ul class="dropdown-menu dropdown-menu-dark">
@@ -99,20 +102,21 @@
       </div>
     {{end}}
   </div>
-  <div class="d-flex flex-wrap align-items-center gap-2 mb-2 toolbar-row">
-    <input id="domainFilterDomain" class="form-control form-control-sm mono maxw-220" placeholder="按域名搜索">
-    <input id="domainFilterRegistrar" class="form-control form-control-sm maxw-200" placeholder="按注册商搜索">
-    <input id="domainFilterNotes" class="form-control form-control-sm maxw-200" placeholder="按备注搜索">
-    <span id="domainFilterCount" class="text-muted-3 small"></span>
-    <button type="button" class="btn btn-sm btn-outline-light view-toggle">网格模式</button>
-    <button type="button" class="btn btn-sm btn-outline-light compact-toggle">紧凑模式</button>
+  <div class="toolbar">
+    <div class="toolbar-search">
+      <input id="domainFilterDomain" class="form-control form-control-sm mono" placeholder="按域名搜索">
+      <input id="domainFilterRegistrar" class="form-control form-control-sm" placeholder="按注册商搜索">
+      <input id="domainFilterNotes" class="form-control form-control-sm" placeholder="按备注搜索">
+      <span id="domainFilterCount" class="text-muted-3 small"></span>
+    </div>
+    <div class="toolbar-view">
+      <button type="button" class="btn btn-sm btn-outline-light view-toggle">网格模式</button>
+      <button type="button" class="btn btn-sm btn-outline-light compact-toggle">紧凑模式</button>
+    </div>
   </div>
   {{if .IsAdmin}}
-  <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-    <div class="form-check form-check-inline mb-0">
-      <input class="form-check-input" type="checkbox" id="domainSelectAll">
-      <label class="form-check-label" for="domainSelectAll">全选当前页</label>
-    </div>
+  <div class="batchbar">
+    <label class="batchbar-all"><input class="form-check-input" type="checkbox" id="domainSelectAll"> 全选当前页</label>
     <select id="domainBatchAction" class="form-select form-select-sm mono wauto">
       <option value="">批量操作...</option>
       <option value="renew">设置到期（续费）</option>
@@ -128,8 +132,8 @@
     <span id="domainBatchCount" class="text-muted-3 small"></span>
   </div>
   {{end}}
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-    <div class="d-flex align-items-center gap-2">
+  <div class="pager">
+    <div class="pager-size">
       <span class="text-muted-3 small">每页</span>
       <select id="domainPageSize" class="form-select form-select-sm mono wauto">
         <option value="12">12</option>
@@ -139,7 +143,7 @@
         <option value="0">全部</option>
       </select>
     </div>
-    <div class="d-flex align-items-center gap-2">
+    <div class="pager-nav">
       <button type="button" id="domainPagePrev" class="btn btn-sm btn-outline-light">上一页</button>
       <span id="domainPageInfo" class="text-muted-3 small">1/1</span>
       <button type="button" id="domainPageNext" class="btn btn-sm btn-outline-light">下一页</button>
@@ -324,13 +328,16 @@
     </div>
   </div>
 
-  <div class="d-flex align-items-center justify-content-between mb-2">
-    <div class="d-flex align-items-center gap-2">
+  </div>
+
+  <div class="tab-panel" data-panel="vps" hidden>
+  <div class="section-head">
+    <div class="section-title">
       <h5 class="mb-0">VPS（服务器）</h5>
       {{if .IsAdmin}}<span class="text-muted-3 small">拖动行排序</span>{{end}}
     </div>
     {{if .IsAdmin}}
-      <div class="d-flex gap-2">
+      <div class="section-actions">
         <div class="dropdown">
           <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">排序</button>
           <ul class="dropdown-menu dropdown-menu-dark">
@@ -356,21 +363,22 @@
       </div>
     {{end}}
   </div>
-  <div class="d-flex flex-wrap align-items-center gap-2 mb-2 toolbar-row">
-    <input id="vpsFilterVendor" class="form-control form-control-sm maxw-200" placeholder="按厂商搜索">
-    <input id="vpsFilterIP" class="form-control form-control-sm mono maxw-200" placeholder="按 IP 搜索">
-    <input id="vpsFilterRegion" class="form-control form-control-sm mono maxw-160" placeholder="按地区搜索">
-    <input id="vpsFilterNotes" class="form-control form-control-sm maxw-200" placeholder="按备注搜索">
-    <span id="vpsFilterCount" class="text-muted-3 small"></span>
-    <button type="button" class="btn btn-sm btn-outline-light view-toggle">网格模式</button>
-    <button type="button" class="btn btn-sm btn-outline-light compact-toggle">紧凑模式</button>
+  <div class="toolbar">
+    <div class="toolbar-search">
+      <input id="vpsFilterVendor" class="form-control form-control-sm" placeholder="按厂商搜索">
+      <input id="vpsFilterIP" class="form-control form-control-sm mono" placeholder="按 IP 搜索">
+      <input id="vpsFilterRegion" class="form-control form-control-sm mono" placeholder="按地区搜索">
+      <input id="vpsFilterNotes" class="form-control form-control-sm" placeholder="按备注搜索">
+      <span id="vpsFilterCount" class="text-muted-3 small"></span>
+    </div>
+    <div class="toolbar-view">
+      <button type="button" class="btn btn-sm btn-outline-light view-toggle">网格模式</button>
+      <button type="button" class="btn btn-sm btn-outline-light compact-toggle">紧凑模式</button>
+    </div>
   </div>
   {{if .IsAdmin}}
-  <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-    <div class="form-check form-check-inline mb-0">
-      <input class="form-check-input" type="checkbox" id="vpsSelectAll">
-      <label class="form-check-label" for="vpsSelectAll">全选当前页</label>
-    </div>
+  <div class="batchbar">
+    <label class="batchbar-all"><input class="form-check-input" type="checkbox" id="vpsSelectAll"> 全选当前页</label>
     <select id="vpsBatchAction" class="form-select form-select-sm mono wauto">
       <option value="">批量操作...</option>
       <option value="renew">设置到期（续费）</option>
@@ -387,8 +395,8 @@
     <span id="vpsBatchCount" class="text-muted-3 small"></span>
   </div>
   {{end}}
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-    <div class="d-flex align-items-center gap-2">
+  <div class="pager">
+    <div class="pager-size">
       <span class="text-muted-3 small">每页</span>
       <select id="vpsPageSize" class="form-select form-select-sm mono wauto">
         <option value="12">12</option>
@@ -398,7 +406,7 @@
         <option value="0">全部</option>
       </select>
     </div>
-    <div class="d-flex align-items-center gap-2">
+    <div class="pager-nav">
       <button type="button" id="vpsPagePrev" class="btn btn-sm btn-outline-light">上一页</button>
       <span id="vpsPageInfo" class="text-muted-3 small">1/1</span>
       <button type="button" id="vpsPageNext" class="btn btn-sm btn-outline-light">下一页</button>
@@ -629,6 +637,7 @@
         </div>
       </div>
     </div>
+  </div>
   </div>
   {{if .IsAdmin}}
   <script nonce="{{.CSPNonce}}">
@@ -872,6 +881,55 @@
   {{end}}
   <script nonce="{{.CSPNonce}}">
     (function () {
+      function setupTabs() {
+        const tabs = Array.from(document.querySelectorAll('[data-tab]'));
+        const panels = Array.from(document.querySelectorAll('[data-panel]'));
+        if (!tabs.length || !panels.length) return;
+        const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const activate = (name, instant) => {
+          const panelDelay = (instant || reduceMotion) ? 0 : 180;
+          tabs.forEach((tab) => {
+            const active = tab.getAttribute('data-tab') === name;
+            tab.classList.toggle('is-active', active);
+            tab.setAttribute('aria-selected', active ? 'true' : 'false');
+          });
+          panels.forEach((panel) => {
+            const active = panel.getAttribute('data-panel') === name;
+            if (active) {
+              panel.hidden = false;
+              panel.classList.remove('is-leaving');
+              const show = function () {
+                panel.classList.add('is-active');
+              };
+              if (instant) show(); else window.requestAnimationFrame(show);
+              return;
+            }
+            panel.classList.remove('is-active');
+            if (!panel.hidden) {
+              if (instant) {
+                panel.hidden = true;
+                panel.classList.remove('is-leaving');
+                return;
+              }
+              panel.classList.add('is-leaving');
+              window.setTimeout(function () {
+                if (!panel.classList.contains('is-active')) {
+                  panel.hidden = true;
+                  panel.classList.remove('is-leaving');
+                }
+              }, panelDelay);
+            }
+          });
+          try { localStorage.setItem('mb_active_tab', name); } catch (_) {}
+        };
+        tabs.forEach((tab) => tab.addEventListener('click', function () { activate(tab.getAttribute('data-tab') || 'domain', false); }));
+        let initial = 'domain';
+        try { initial = localStorage.getItem('mb_active_tab') || initial; } catch (_) {}
+        if (!tabs.some((tab) => tab.getAttribute('data-tab') === initial)) initial = 'domain';
+        activate(initial, true);
+      }
+      setupTabs();
+
       const safeGet = (key) => {
         try { return localStorage.getItem(key) || ''; } catch (_) { return ''; }
       };

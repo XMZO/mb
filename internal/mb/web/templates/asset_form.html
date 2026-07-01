@@ -1,287 +1,459 @@
 {{define "asset_form"}}{{template "layout" .}}{{end}}
 {{define "content"}}
-  <div class="d-flex align-items-center justify-content-between mb-3">
-    <h4 class="mb-0">{{.Title}}</h4>
-    <a class="btn btn-sm btn-outline-light" href="/">返回</a>
-  </div>
+  <div class="page-enter">
+    <div class="page-hero">
+      <div>
+        <div class="page-kicker">{{if eq .Kind "domain"}}Domain asset{{else}}VPS asset{{end}}</div>
+        <h1 class="page-title">{{.Title}}</h1>
+        <div class="page-subtitle">按资产面板同一套暗色卡片语言重组信息层级，基础信息、续费规则与展示策略分区填写。</div>
+      </div>
+      <div class="hero-actions">
+        <a class="btn btn-sm btn-outline-light" href="/">返回面板</a>
+      </div>
+    </div>
 
-  {{if .Error}}<div class="alert alert-danger">{{.Error}}</div>{{end}}
+    {{if .Error}}<div class="alert alert-danger">{{.Error}}</div>{{end}}
 
-  <div class="p-4 rounded-4 bg-panel">
     <form method="post" action="{{.Action}}">
       {{template "csrf" .}}
       {{if eq .Kind "domain"}}
-        <div class="row g-3">
-          <div class="col-12 col-lg-6">
-            <label class="form-label">域名</label>
-            <input class="form-control mono" name="domain" value='{{index .Item "domain"}}' required>
-          </div>
-          <div class="col-12 col-lg-6">
-            <label class="form-label">注册商</label>
-            <input class="form-control" name="registrar" value='{{index .Item "registrar"}}'>
-          </div>
-          <div class="col-12 col-lg-4">
-            <label class="form-label">到期时间</label>
-            <input type="date" class="form-control mono" id="domain_expires_at" name="expires_at" value='{{index .Item "expires_at"}}' required>
-            <div class="form-check form-switch mt-2">
-              <input class="form-check-input" type="checkbox" role="switch" id="domain_expires_permanent" name="expires_permanent" value="1" data-permanent-target="domain_expires_at" {{if eq (index .Item "expires_permanent") "1"}}checked{{end}}>
-              <label class="form-check-label" for="domain_expires_permanent">永久</label>
-            </div>
-          </div>
-          <div class="col-12 col-lg-4">
-            <label class="form-label">续费价格</label>
-            <input class="form-control mono" name="price" value='{{index .Item "price"}}' inputmode="decimal">
-            <div class="text-muted-3 small mt-1">可填 0 或 “免费”。</div>
-          </div>
-          <div class="col-12 col-lg-4">
-            <label class="form-label">币种</label>
-            <select class="form-select mono" name="currency">
-              <option value="CNY" {{if eq (index .Item "currency") "CNY"}}selected{{end}}>CNY</option>
-              <option value="USD" {{if eq (index .Item "currency") "USD"}}selected{{end}}>USD</option>
-              <option value="EUR" {{if eq (index .Item "currency") "EUR"}}selected{{end}}>EUR</option>
-              <option value="RUB" {{if eq (index .Item "currency") "RUB"}}selected{{end}}>RUB</option>
-            </select>
-          </div>
-          <div class="col-12 col-lg-4">
-            <label class="form-label">续费成本</label>
-            <div class="form-check form-switch mt-2">
-              <input class="form-check-input" type="checkbox" role="switch" id="domain_exclude_cost" name="exclude_cost" value="1" {{if eq (index .Item "exclude_cost") "1"}}checked{{end}}>
-              <label class="form-check-label" for="domain_exclude_cost">不计入总续费成本</label>
-            </div>
-            <div class="form-check form-switch mt-2">
-              <input class="form-check-input" type="checkbox" role="switch" id="domain_pinned" name="pinned" value="1" {{if eq (index .Item "pinned") "1"}}checked{{end}}>
-              <label class="form-check-label" for="domain_pinned">置顶/突出显示</label>
-            </div>
-            <div class="form-check form-switch mt-2">
-              <input class="form-check-input" type="checkbox" role="switch" id="domain_hidden" name="hidden" value="1" {{if eq (index .Item "hidden") "1"}}checked{{end}}>
-              <label class="form-check-label" for="domain_hidden">对访客隐藏（仅显示“已隐藏”）</label>
-            </div>
-          </div>
-          <div class="col-12">
-            <label class="form-label">备注</label>
-            <textarea class="form-control" name="notes" rows="3">{{index .Item "notes"}}</textarea>
-          </div>
-        </div>
-      {{else}}
-        <div class="row g-3">
-          <div class="col-12 col-lg-4">
-            <label class="form-label">厂商</label>
-            <input class="form-control" name="vendor" value='{{index .Item "vendor"}}' required>
-          </div>
-          <div class="col-12 col-lg-4">
-            <label class="form-label">地区</label>
-            <input class="form-control mono" name="region" value='{{index .Item "region"}}' list="regionList" placeholder="HK / SG / JP ...">
-          </div>
-          <div class="col-12 col-lg-4">
-            <label class="form-label">IP</label>
-            <input class="form-control mono" name="ip" value='{{index .Item "ip"}}'>
-          </div>
-          <div class="col-6 col-lg-2">
-            <label class="form-label">核心</label>
-            <input class="form-control mono" name="cores" value='{{index .Item "cores"}}' inputmode="numeric" list="coresList" placeholder="2">
-          </div>
-          <div class="col-6 col-lg-2">
-            <label class="form-label">内存(GB)</label>
-            <input class="form-control mono" name="memory_gb" value='{{index .Item "memory_gb"}}' inputmode="decimal" list="memoryList" placeholder="4">
-          </div>
-          <div class="col-12 col-lg-8">
-            <label class="form-label">硬盘（可多块）</label>
-            <div id="diskRows" class="d-flex flex-column gap-2">
-              {{range .DiskRows}}
-                <div class="disk-row">
-                  <div class="input-group">
-                    <input class="form-control mono" name="disk_gb" value='{{.SizeGB}}' inputmode="numeric" list="diskList" placeholder="80">
-                    <select class="form-select mono" name="disk_type" class="maxw-140">
-                      <option value="" {{if eq .Type ""}}selected{{end}}>不标注</option>
-                      <option value="SSD" {{if eq .Type "SSD"}}selected{{end}}>SSD</option>
-                      <option value="HDD" {{if eq .Type "HDD"}}selected{{end}}>HDD</option>
-                    </select>
-                    <button type="button" class="btn btn-outline-light disk-remove">删除</button>
+        <div class="content-grid">
+          <div class="stack">
+            <section class="form-panel glass-panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">基础信息</h2>
+                  <div class="panel-subtitle">记录域名主体、注册商与备注信息。</div>
+                </div>
+                <span class="pill-soft">Domain</span>
+              </div>
+              <div class="row g-2">
+                <div class="col-12 col-lg-7">
+                  <div class="field-card">
+                    <label class="form-label">域名</label>
+                    <input class="form-control mono" name="domain" value='{{index .Item "domain"}}' placeholder="example.com" required>
                   </div>
                 </div>
-              {{end}}
-            </div>
-            <div class="d-flex align-items-center gap-2 mt-2">
-              <button type="button" class="btn btn-outline-light btn-sm" id="diskAdd">+ 添加硬盘</button>
-              <div class="text-muted-3 small">支持多块盘（如 20G+100G）；类型不选则不显示。</div>
-            </div>
-          </div>
-          <div class="col-12 col-lg-4">
-            <label class="form-label">流量(TB)</label>
-            <input class="form-control mono" name="traffic_tb" value='{{index .Item "traffic_tb"}}' inputmode="decimal" list="trafficList" placeholder="留空不显示；0=不限">
-            <div class="text-muted-3 small mt-1">留空不显示；填 0 表示不限。</div>
-          </div>
-          <div class="col-12 col-lg-4">
-            <label class="form-label">单双向（可选）</label>
-            <select class="form-select mono" name="traffic_dir">
-              <option value="" {{if eq (index .Item "traffic_dir") ""}}selected{{end}}>不标注</option>
-              <option value="single" {{if eq (index .Item "traffic_dir") "single"}}selected{{end}}>单向</option>
-              <option value="double" {{if eq (index .Item "traffic_dir") "double"}}selected{{end}}>双向</option>
-            </select>
-            <div class="text-muted-3 small mt-1">仅在填写流量时生效（0=不限）。</div>
-          </div>
-          <div class="col-12 col-lg-4">
-            <label class="form-label">带宽</label>
-            <div class="input-group">
-              <input class="form-control mono" name="bandwidth_value" value='{{index .Item "bandwidth_value"}}' inputmode="decimal" list="bandwidthList" placeholder="100">
-              <select class="form-select mono" name="bandwidth_unit" class="maxw-120">
-                <option value="Mbps" {{if eq (index .Item "bandwidth_unit") "Mbps"}}selected{{end}}>Mbps</option>
-                <option value="Gbps" {{if eq (index .Item "bandwidth_unit") "Gbps"}}selected{{end}}>Gbps</option>
-              </select>
-            </div>
-          </div>
-          <div class="col-12">
-            <label class="form-label">自定义描述（可选）</label>
-            <input class="form-control mono" name="specs" value='{{index .Item "specs"}}' placeholder="如：洛杉矶 CN2 / BGP / 年付促销 ...">
-            <div class="text-muted-3 small mt-1">提示：上面参数会自动显示为徽章；这里用来补充套餐信息。</div>
-          </div>
-          <div class="col-12 col-lg-4">
-            <label class="form-label">到期时间</label>
-            <input type="date" class="form-control mono" id="vps_expires_at" name="expires_at" value='{{index .Item "expires_at"}}' required>
-            <div class="form-check form-switch mt-2">
-              <input class="form-check-input" type="checkbox" role="switch" id="vps_expires_permanent" name="expires_permanent" value="1" data-permanent-target="vps_expires_at" {{if eq (index .Item "expires_permanent") "1"}}checked{{end}}>
-              <label class="form-check-label" for="vps_expires_permanent">永久</label>
-            </div>
-          </div>
-          <div class="col-12 col-lg-4">
-            <label class="form-label">续费价格</label>
-            <input class="form-control mono" name="price" value='{{index .Item "price"}}' inputmode="decimal">
-            <div class="text-muted-3 small mt-1">可填 0 或 “免费”。</div>
-          </div>
-          <div class="col-12 col-lg-4">
-            <label class="form-label">币种</label>
-            <select class="form-select mono" name="currency">
-              <option value="CNY" {{if eq (index .Item "currency") "CNY"}}selected{{end}}>CNY</option>
-              <option value="USD" {{if eq (index .Item "currency") "USD"}}selected{{end}}>USD</option>
-              <option value="EUR" {{if eq (index .Item "currency") "EUR"}}selected{{end}}>EUR</option>
-              <option value="RUB" {{if eq (index .Item "currency") "RUB"}}selected{{end}}>RUB</option>
-            </select>
-          </div>
-          <div class="col-12 col-lg-4">
-            <label class="form-label">付费周期</label>
-            <input class="form-control mono" name="billing_months" value='{{index .Item "billing_months"}}' inputmode="numeric" list="billingMonthsList" placeholder="12">
-            <div class="text-muted-3 small mt-1">填月数（可自定义，如 36=三年），用于年续费成本统计。</div>
-          </div>
-          <div class="col-12 col-lg-4">
-            <label class="form-label">续费成本</label>
-            <div class="form-check form-switch mt-2">
-              <input class="form-check-input" type="checkbox" role="switch" id="vps_exclude_cost" name="exclude_cost" value="1" {{if eq (index .Item "exclude_cost") "1"}}checked{{end}}>
-              <label class="form-check-label" for="vps_exclude_cost">不计入总续费成本</label>
-            </div>
-            <div class="form-check form-switch mt-2">
-              <input class="form-check-input" type="checkbox" role="switch" id="vps_pinned" name="pinned" value="1" {{if eq (index .Item "pinned") "1"}}checked{{end}}>
-              <label class="form-check-label" for="vps_pinned">置顶/突出显示</label>
-            </div>
-            <div class="form-check form-switch mt-2">
-              <input class="form-check-input" type="checkbox" role="switch" id="vps_hidden" name="hidden" value="1" {{if eq (index .Item "hidden") "1"}}checked{{end}}>
-              <label class="form-check-label" for="vps_hidden">对访客隐藏（仅显示“已隐藏”）</label>
-            </div>
-          </div>
-          <div class="col-12">
-            <label class="form-label">备注</label>
-            <textarea class="form-control" name="notes" rows="3">{{index .Item "notes"}}</textarea>
-          </div>
-
-          <datalist id="regionList">
-            <option value="HK"></option>
-            <option value="SG"></option>
-            <option value="JP"></option>
-            <option value="KR"></option>
-            <option value="US"></option>
-            <option value="US-W"></option>
-            <option value="US-E"></option>
-            <option value="DE"></option>
-            <option value="NL"></option>
-            <option value="UK"></option>
-            <option value="FR"></option>
-            <option value="CA"></option>
-            <option value="AU"></option>
-            <option value="IN"></option>
-          </datalist>
-          <datalist id="coresList">
-            <option value="1"></option>
-            <option value="2"></option>
-            <option value="3"></option>
-            <option value="4"></option>
-            <option value="6"></option>
-            <option value="8"></option>
-            <option value="12"></option>
-            <option value="16"></option>
-            <option value="24"></option>
-            <option value="32"></option>
-          </datalist>
-          <datalist id="memoryList">
-            <option value="0.5"></option>
-            <option value="1"></option>
-            <option value="2"></option>
-            <option value="4"></option>
-            <option value="8"></option>
-            <option value="16"></option>
-            <option value="32"></option>
-            <option value="64"></option>
-            <option value="128"></option>
-          </datalist>
-          <datalist id="diskList">
-            <option value="20"></option>
-            <option value="30"></option>
-            <option value="40"></option>
-            <option value="50"></option>
-            <option value="80"></option>
-            <option value="100"></option>
-            <option value="200"></option>
-            <option value="500"></option>
-            <option value="1000"></option>
-          </datalist>
-          <datalist id="trafficList">
-            <option value="0"></option>
-            <option value="0.5"></option>
-            <option value="1"></option>
-            <option value="2"></option>
-            <option value="3"></option>
-            <option value="5"></option>
-            <option value="10"></option>
-            <option value="20"></option>
-            <option value="50"></option>
-          </datalist>
-          <datalist id="bandwidthList">
-            <option value="0.1"></option>
-            <option value="0.5"></option>
-            <option value="1"></option>
-            <option value="2"></option>
-            <option value="5"></option>
-            <option value="10"></option>
-            <option value="20"></option>
-            <option value="50"></option>
-            <option value="100"></option>
-            <option value="200"></option>
-            <option value="500"></option>
-            <option value="1000"></option>
-          </datalist>
-          <datalist id="billingMonthsList">
-            <option value="1"></option>
-            <option value="3"></option>
-            <option value="6"></option>
-            <option value="12"></option>
-            <option value="24"></option>
-            <option value="36"></option>
-            <option value="48"></option>
-            <option value="60"></option>
-          </datalist>
-
-          <template id="diskRowTpl">
-            <div class="disk-row">
-              <div class="input-group">
-                <input class="form-control mono" name="disk_gb" inputmode="numeric" list="diskList" placeholder="80">
-                <select class="form-select mono" name="disk_type" class="maxw-140">
-                  <option value="">不标注</option>
-                  <option value="SSD">SSD</option>
-                  <option value="HDD">HDD</option>
-                </select>
-                <button type="button" class="btn btn-outline-light disk-remove">删除</button>
+                <div class="col-12 col-lg-5">
+                  <div class="field-card">
+                    <label class="form-label">注册商</label>
+                    <input class="form-control" name="registrar" value='{{index .Item "registrar"}}' placeholder="NameSilo / Cloudflare ...">
+                  </div>
+                </div>
+                <div class="col-12">
+                  <div class="field-card">
+                    <label class="form-label">备注</label>
+                    <textarea class="form-control" name="notes" rows="4" placeholder="用途、项目、DNS 或其它提示">{{index .Item "notes"}}</textarea>
+                  </div>
+                </div>
               </div>
-            </div>
-          </template>
+            </section>
+
+            <section class="form-panel glass-panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">续费与到期</h2>
+                  <div class="panel-subtitle">用于面板提醒、年度续费成本统计与折算。</div>
+                </div>
+                <span class="pill-soft">Renewal</span>
+              </div>
+              <div class="row g-2">
+                <div class="col-12 col-lg-4">
+                  <div class="field-card">
+                    <label class="form-label">到期时间</label>
+                    <input type="date" class="form-control mono" id="domain_expires_at" name="expires_at" value='{{index .Item "expires_at"}}' required>
+                    <div class="form-check form-switch mt-2">
+                      <input class="form-check-input" type="checkbox" role="switch" id="domain_expires_permanent" name="expires_permanent" value="1" data-permanent-target="domain_expires_at" {{if eq (index .Item "expires_permanent") "1"}}checked{{end}}>
+                      <label class="form-check-label" for="domain_expires_permanent">永久</label>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-12 col-lg-4">
+                  <div class="field-card">
+                    <label class="form-label">续费价格</label>
+                    <input class="form-control mono" name="price" value='{{index .Item "price"}}' inputmode="decimal" placeholder="12.99">
+                    <div class="field-help">可填 0 或 “免费”。</div>
+                  </div>
+                </div>
+                <div class="col-12 col-lg-4">
+                  <div class="field-card">
+                    <label class="form-label">币种</label>
+                    <select class="form-select mono" name="currency">
+                      <option value="CNY" {{if eq (index .Item "currency") "CNY"}}selected{{end}}>CNY</option>
+                      <option value="USD" {{if eq (index .Item "currency") "USD"}}selected{{end}}>USD</option>
+                      <option value="EUR" {{if eq (index .Item "currency") "EUR"}}selected{{end}}>EUR</option>
+                      <option value="RUB" {{if eq (index .Item "currency") "RUB"}}selected{{end}}>RUB</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <aside class="stack">
+            <section class="form-panel glass-panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">展示策略</h2>
+                  <div class="panel-subtitle">决定资产是否突出、隐藏，以及是否计入总续费成本。</div>
+                </div>
+              </div>
+              <div class="row g-2">
+                <div class="col-12">
+                  <div class="switch-card">
+                    <div class="form-check form-switch">
+                      <input class="form-check-input" type="checkbox" role="switch" id="domain_exclude_cost" name="exclude_cost" value="1" {{if eq (index .Item "exclude_cost") "1"}}checked{{end}}>
+                      <label class="form-check-label" for="domain_exclude_cost">
+                        <span class="fw-semibold">不计入总续费成本</span>
+                        <span class="d-block text-muted-3 small mt-1">适合免费、已取消或仅记录用途的域名。</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <div class="switch-card">
+                    <div class="form-check form-switch">
+                      <input class="form-check-input" type="checkbox" role="switch" id="domain_pinned" name="pinned" value="1" {{if eq (index .Item "pinned") "1"}}checked{{end}}>
+                      <label class="form-check-label" for="domain_pinned">
+                        <span class="fw-semibold">置顶 / 突出显示</span>
+                        <span class="d-block text-muted-3 small mt-1">在列表中优先展示并使用强调样式。</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <div class="switch-card">
+                    <div class="form-check form-switch">
+                      <input class="form-check-input" type="checkbox" role="switch" id="domain_hidden" name="hidden" value="1" {{if eq (index .Item "hidden") "1"}}checked{{end}}>
+                      <label class="form-check-label" for="domain_hidden">
+                        <span class="fw-semibold">对访客隐藏</span>
+                        <span class="d-block text-muted-3 small mt-1">公开模式下仅显示“已隐藏”。</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </aside>
         </div>
+      {{else}}
+        <div class="content-grid">
+          <div class="stack">
+            <section class="form-panel glass-panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">基础信息</h2>
+                  <div class="panel-subtitle">记录厂商、地区与网络入口。</div>
+                </div>
+                <span class="pill-soft">VPS</span>
+              </div>
+              <div class="row g-2">
+                <div class="col-12 col-lg-4">
+                  <div class="field-card">
+                    <label class="form-label">厂商</label>
+                    <input class="form-control" name="vendor" value='{{index .Item "vendor"}}' placeholder="Provider" required>
+                  </div>
+                </div>
+                <div class="col-12 col-lg-4">
+                  <div class="field-card">
+                    <label class="form-label">地区</label>
+                    <input class="form-control mono" name="region" value='{{index .Item "region"}}' list="regionList" placeholder="HK / SG / JP ...">
+                  </div>
+                </div>
+                <div class="col-12 col-lg-4">
+                  <div class="field-card">
+                    <label class="form-label">IP</label>
+                    <input class="form-control mono" name="ip" value='{{index .Item "ip"}}' placeholder="192.0.2.1">
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="form-panel glass-panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">配置规格</h2>
+                  <div class="panel-subtitle">硬件、流量、带宽会自动显示为资产徽章。</div>
+                </div>
+                <span class="pill-soft">Specs</span>
+              </div>
+              <div class="row g-2">
+                <div class="col-6 col-lg-3">
+                  <div class="field-card">
+                    <label class="form-label">核心</label>
+                    <input class="form-control mono" name="cores" value='{{index .Item "cores"}}' inputmode="numeric" list="coresList" placeholder="2">
+                  </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                  <div class="field-card">
+                    <label class="form-label">内存(GB)</label>
+                    <input class="form-control mono" name="memory_gb" value='{{index .Item "memory_gb"}}' inputmode="decimal" list="memoryList" placeholder="4">
+                  </div>
+                </div>
+                <div class="col-12 col-lg-6">
+                  <div class="field-card">
+                    <label class="form-label">硬盘（可多块）</label>
+                    <div id="diskRows" class="d-flex flex-column gap-2">
+                      {{range .DiskRows}}
+                        <div class="disk-row">
+                          <div class="input-group">
+                            <input class="form-control mono" name="disk_gb" value='{{.SizeGB}}' inputmode="numeric" list="diskList" placeholder="80">
+                            <select class="form-select mono maxw-140" name="disk_type">
+                              <option value="" {{if eq .Type ""}}selected{{end}}>不标注</option>
+                              <option value="SSD" {{if eq .Type "SSD"}}selected{{end}}>SSD</option>
+                              <option value="HDD" {{if eq .Type "HDD"}}selected{{end}}>HDD</option>
+                            </select>
+                            <button type="button" class="btn btn-outline-light disk-remove">删除</button>
+                          </div>
+                        </div>
+                      {{end}}
+                    </div>
+                    <div class="d-flex align-items-center gap-2 mt-2 flex-wrap">
+                      <button type="button" class="btn btn-outline-light btn-sm" id="diskAdd">+ 添加硬盘</button>
+                      <div class="field-help mt-0">支持多块盘；类型不选则不显示。</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-12 col-lg-4">
+                  <div class="field-card">
+                    <label class="form-label">流量(TB)</label>
+                    <input class="form-control mono" name="traffic_tb" value='{{index .Item "traffic_tb"}}' inputmode="decimal" list="trafficList" placeholder="留空不显示；0=不限">
+                    <div class="field-help">留空不显示；填 0 表示不限。</div>
+                  </div>
+                </div>
+                <div class="col-12 col-lg-4">
+                  <div class="field-card">
+                    <label class="form-label">单双向（可选）</label>
+                    <select class="form-select mono" name="traffic_dir">
+                      <option value="" {{if eq (index .Item "traffic_dir") ""}}selected{{end}}>不标注</option>
+                      <option value="single" {{if eq (index .Item "traffic_dir") "single"}}selected{{end}}>单向</option>
+                      <option value="double" {{if eq (index .Item "traffic_dir") "double"}}selected{{end}}>双向</option>
+                    </select>
+                    <div class="field-help">仅在填写流量时生效。</div>
+                  </div>
+                </div>
+                <div class="col-12 col-lg-4">
+                  <div class="field-card">
+                    <label class="form-label">带宽</label>
+                    <div class="input-group">
+                      <input class="form-control mono" name="bandwidth_value" value='{{index .Item "bandwidth_value"}}' inputmode="decimal" list="bandwidthList" placeholder="100">
+                      <select class="form-select mono maxw-120" name="bandwidth_unit">
+                        <option value="Mbps" {{if eq (index .Item "bandwidth_unit") "Mbps"}}selected{{end}}>Mbps</option>
+                        <option value="Gbps" {{if eq (index .Item "bandwidth_unit") "Gbps"}}selected{{end}}>Gbps</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <div class="field-card">
+                    <label class="form-label">自定义描述（可选）</label>
+                    <input class="form-control mono" name="specs" value='{{index .Item "specs"}}' placeholder="如：洛杉矶 CN2 / BGP / 年付促销 ...">
+                    <div class="field-help">上面参数会自动显示为徽章；这里用来补充套餐信息。</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="form-panel glass-panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">续费与备注</h2>
+                  <div class="panel-subtitle">用于到期提醒、续费折算与年化成本统计。</div>
+                </div>
+                <span class="pill-soft">Renewal</span>
+              </div>
+              <div class="row g-2">
+                <div class="col-12 col-lg-3">
+                  <div class="field-card">
+                    <label class="form-label">到期时间</label>
+                    <input type="date" class="form-control mono" id="vps_expires_at" name="expires_at" value='{{index .Item "expires_at"}}' required>
+                    <div class="form-check form-switch mt-2">
+                      <input class="form-check-input" type="checkbox" role="switch" id="vps_expires_permanent" name="expires_permanent" value="1" data-permanent-target="vps_expires_at" {{if eq (index .Item "expires_permanent") "1"}}checked{{end}}>
+                      <label class="form-check-label" for="vps_expires_permanent">永久</label>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-12 col-lg-3">
+                  <div class="field-card">
+                    <label class="form-label">续费价格</label>
+                    <input class="form-control mono" name="price" value='{{index .Item "price"}}' inputmode="decimal">
+                    <div class="field-help">可填 0 或 “免费”。</div>
+                  </div>
+                </div>
+                <div class="col-12 col-lg-3">
+                  <div class="field-card">
+                    <label class="form-label">币种</label>
+                    <select class="form-select mono" name="currency">
+                      <option value="CNY" {{if eq (index .Item "currency") "CNY"}}selected{{end}}>CNY</option>
+                      <option value="USD" {{if eq (index .Item "currency") "USD"}}selected{{end}}>USD</option>
+                      <option value="EUR" {{if eq (index .Item "currency") "EUR"}}selected{{end}}>EUR</option>
+                      <option value="RUB" {{if eq (index .Item "currency") "RUB"}}selected{{end}}>RUB</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="col-12 col-lg-3">
+                  <div class="field-card">
+                    <label class="form-label">付费周期</label>
+                    <input class="form-control mono" name="billing_months" value='{{index .Item "billing_months"}}' inputmode="numeric" list="billingMonthsList" placeholder="12">
+                    <div class="field-help">填月数，如 36=三年。</div>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <div class="field-card">
+                    <label class="form-label">备注</label>
+                    <textarea class="form-control" name="notes" rows="4" placeholder="登录方式、控制台链接、用途或注意事项">{{index .Item "notes"}}</textarea>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <aside class="stack">
+            <section class="form-panel glass-panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">展示策略</h2>
+                  <div class="panel-subtitle">设置统计、排序高亮与公开模式可见性。</div>
+                </div>
+              </div>
+              <div class="row g-2">
+                <div class="col-12">
+                  <div class="switch-card">
+                    <div class="form-check form-switch">
+                      <input class="form-check-input" type="checkbox" role="switch" id="vps_exclude_cost" name="exclude_cost" value="1" {{if eq (index .Item "exclude_cost") "1"}}checked{{end}}>
+                      <label class="form-check-label" for="vps_exclude_cost">
+                        <span class="fw-semibold">不计入总续费成本</span>
+                        <span class="d-block text-muted-3 small mt-1">适合免费、试用或不再续费的实例。</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <div class="switch-card">
+                    <div class="form-check form-switch">
+                      <input class="form-check-input" type="checkbox" role="switch" id="vps_pinned" name="pinned" value="1" {{if eq (index .Item "pinned") "1"}}checked{{end}}>
+                      <label class="form-check-label" for="vps_pinned">
+                        <span class="fw-semibold">置顶 / 突出显示</span>
+                        <span class="d-block text-muted-3 small mt-1">关键节点会在列表中优先展示。</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <div class="switch-card">
+                    <div class="form-check form-switch">
+                      <input class="form-check-input" type="checkbox" role="switch" id="vps_hidden" name="hidden" value="1" {{if eq (index .Item "hidden") "1"}}checked{{end}}>
+                      <label class="form-check-label" for="vps_hidden">
+                        <span class="fw-semibold">对访客隐藏</span>
+                        <span class="d-block text-muted-3 small mt-1">公开模式下仅显示“已隐藏”。</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </aside>
+        </div>
+
+        <datalist id="regionList">
+          <option value="HK"></option>
+          <option value="SG"></option>
+          <option value="JP"></option>
+          <option value="KR"></option>
+          <option value="US"></option>
+          <option value="US-W"></option>
+          <option value="US-E"></option>
+          <option value="DE"></option>
+          <option value="NL"></option>
+          <option value="UK"></option>
+          <option value="FR"></option>
+          <option value="CA"></option>
+          <option value="AU"></option>
+          <option value="IN"></option>
+        </datalist>
+        <datalist id="coresList">
+          <option value="1"></option>
+          <option value="2"></option>
+          <option value="3"></option>
+          <option value="4"></option>
+          <option value="6"></option>
+          <option value="8"></option>
+          <option value="12"></option>
+          <option value="16"></option>
+          <option value="24"></option>
+          <option value="32"></option>
+        </datalist>
+        <datalist id="memoryList">
+          <option value="0.5"></option>
+          <option value="1"></option>
+          <option value="2"></option>
+          <option value="4"></option>
+          <option value="8"></option>
+          <option value="16"></option>
+          <option value="32"></option>
+          <option value="64"></option>
+          <option value="128"></option>
+        </datalist>
+        <datalist id="diskList">
+          <option value="20"></option>
+          <option value="30"></option>
+          <option value="40"></option>
+          <option value="50"></option>
+          <option value="80"></option>
+          <option value="100"></option>
+          <option value="200"></option>
+          <option value="500"></option>
+          <option value="1000"></option>
+        </datalist>
+        <datalist id="trafficList">
+          <option value="0"></option>
+          <option value="0.5"></option>
+          <option value="1"></option>
+          <option value="2"></option>
+          <option value="3"></option>
+          <option value="5"></option>
+          <option value="10"></option>
+          <option value="20"></option>
+          <option value="50"></option>
+        </datalist>
+        <datalist id="bandwidthList">
+          <option value="0.1"></option>
+          <option value="0.5"></option>
+          <option value="1"></option>
+          <option value="2"></option>
+          <option value="5"></option>
+          <option value="10"></option>
+          <option value="20"></option>
+          <option value="50"></option>
+          <option value="100"></option>
+          <option value="200"></option>
+          <option value="500"></option>
+          <option value="1000"></option>
+        </datalist>
+        <datalist id="billingMonthsList">
+          <option value="1"></option>
+          <option value="3"></option>
+          <option value="6"></option>
+          <option value="12"></option>
+          <option value="24"></option>
+          <option value="36"></option>
+          <option value="48"></option>
+          <option value="60"></option>
+        </datalist>
+
+        <template id="diskRowTpl">
+          <div class="disk-row is-entering">
+            <div class="input-group">
+              <input class="form-control mono" name="disk_gb" inputmode="numeric" list="diskList" placeholder="80">
+              <select class="form-select mono maxw-140" name="disk_type">
+                <option value="">不标注</option>
+                <option value="SSD">SSD</option>
+                <option value="HDD">HDD</option>
+              </select>
+              <button type="button" class="btn btn-outline-light disk-remove">删除</button>
+            </div>
+          </div>
+        </template>
 
         <script nonce="{{.CSPNonce}}">
           (function () {
@@ -312,7 +484,10 @@
                 toast('最多 ' + maxRows + ' 块硬盘');
                 return;
               }
-              list.appendChild(tpl.content.cloneNode(true));
+              const fragment = tpl.content.cloneNode(true);
+              const row = fragment.querySelector('.disk-row');
+              list.appendChild(fragment);
+              if (row) window.requestAnimationFrame(function () { row.classList.remove('is-entering'); });
               update();
             });
 
@@ -325,7 +500,9 @@
               if (rows.length <= 1) {
                 row.querySelectorAll('input,select').forEach((el) => { el.value = ''; });
               } else {
-                row.remove();
+                row.classList.add('is-removing');
+                window.setTimeout(function () { row.remove(); update(); }, 160);
+                return;
               }
               update();
             });
@@ -334,11 +511,16 @@
           })();
         </script>
       {{end}}
-      <div class="d-flex gap-2 mt-4">
-        <button class="btn btn-light">保存</button>
-        <a class="btn btn-outline-light" href="/">取消</a>
+
+      <div class="action-bar">
+        <div class="text-muted-3 small">保存后将回到资产面板，列表统计会同步更新。</div>
+        <div class="d-flex gap-2 flex-wrap">
+          <button class="btn btn-light">保存</button>
+          <a class="btn btn-outline-light" href="/">取消</a>
+        </div>
       </div>
     </form>
+
     <script nonce="{{.CSPNonce}}">
       (function () {
         const toggles = document.querySelectorAll('[data-permanent-target]');
