@@ -51,6 +51,36 @@ func (a *app) settingsError(w http.ResponseWriter, userMsg string, err error) {
 	}
 	a.renderSettingsMessage(w, userMsg, "")
 }
+func attachRenderMeta(data any, meta RenderMeta) any {
+	switch v := data.(type) {
+	case dashboardVM:
+		v.RenderMeta = meta
+		return v
+	case loginVM:
+		v.RenderMeta = meta
+		return v
+	case settingsVM:
+		v.RenderMeta = meta
+		return v
+	case assetFormVM:
+		v.RenderMeta = meta
+		return v
+	default:
+		return data
+	}
+}
+
+type metaResponseWriter interface {
+	renderMeta() RenderMeta
+}
+
+func renderMetaFromWriter(w http.ResponseWriter) RenderMeta {
+	if mw, ok := w.(metaResponseWriter); ok {
+		return mw.renderMeta()
+	}
+	return RenderMeta{}
+}
+
 func (a *app) render(w http.ResponseWriter, name string, data any) {
 	a.renderStatus(w, name, data, http.StatusOK)
 }
@@ -60,6 +90,7 @@ func (a *app) renderStatus(w http.ResponseWriter, name string, data any, status 
 		a.serverError(w, fmt.Errorf("template %q not found", name))
 		return
 	}
+	data = attachRenderMeta(data, renderMetaFromWriter(w))
 	var buf bytes.Buffer
 	if err := t.ExecuteTemplate(&buf, name, data); err != nil {
 		a.serverError(w, err)

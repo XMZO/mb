@@ -8,6 +8,7 @@ import (
 	_ "modernc.org/sqlite"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -280,25 +281,109 @@ func ensureDefaults(db *sql.DB, cfg config) error {
 
 	return nil
 }
-func getSetting(db *sql.DB, key string) (string, bool, error) {
+
+var settingsCaches sync.Map // map[*sql.DB]*settingsCache
+
+type settingsCache struct {
+	mu     sync.RWMutex
+	loaded bool
+	values map[string]string
+}
+
+func settingsCacheFor(db *sql.DB) *settingsCache {
+	if db == nil {
+		return &settingsCache{}
+	}
+	if v, ok := settingsCaches.Load(db); ok {
+		return v.(*settingsCache)
+	}
+	c := &settingsCache{values: make(map[string]string)}
+	v, _ := settingsCaches.LoadOrStore(db, c)
+	return v.(*settingsCache)
+}
+
+func (c *settingsCache) ensureLoaded(db *sql.DB) error {
+	c.mu.RLock()
+	loaded := c.loaded
+	c.mu.RUnlock()
+	if loaded {
+		return nil
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.loaded {
+		return nil
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	var v string
-	err := db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key = ?`, key).Scan(&v)
-	if errors.Is(err, sql.ErrNoRows) {
-		return "", false, nil
-	}
+	rows, err := db.QueryContext(ctx, `SELECT key, value FROM settings`)
 	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	values := make(map[string]string)
+	for rows.Next() {
+		var key, value string
+		if err := rows.Scan(&key, &value); err != nil {
+			return err
+		}
+		values[key] = value
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	c.values = values
+	c.loaded = true
+	return nil
+}
+
+func (c *settingsCache) get(db *sql.DB, key string) (string, bool, error) {
+	if err := c.ensureLoaded(db); err != nil {
 		return "", false, err
 	}
-	return v, true, nil
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	v, ok := c.values[key]
+	return v, ok, nil
+}
+
+func (c *settingsCache) set(key, value string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.loaded {
+		c.values[key] = value
+	}
+}
+
+func (c *settingsCache) invalidate() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.loaded = false
+	c.values = make(map[string]string)
+}
+
+func invalidateSettingsCache(db *sql.DB) {
+	if v, ok := settingsCaches.Load(db); ok {
+		v.(*settingsCache).invalidate()
+	}
+}
+
+func getSetting(db *sql.DB, key string) (string, bool, error) {
+	return settingsCacheFor(db).get(db, key)
 }
 func setSetting(db *sql.DB, key, value string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	_, err := db.ExecContext(ctx, `INSERT INTO settings(key,value) VALUES(?,?)
 		ON CONFLICT(key) DO UPDATE SET value=excluded.value`, key, value)
-	return err
+	if err != nil {
+		return err
+	}
+	settingsCacheFor(db).set(key, value)
+	return nil
 }
 func mustGetBoolSetting(db *sql.DB, key string, fallback bool) bool {
 	v, ok, err := getSetting(db, key)

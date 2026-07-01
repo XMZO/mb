@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -36,10 +37,11 @@ func newTestApp(t *testing.T) *app {
 		t.Fatalf("ensureDefaults: %v", err)
 	}
 	return &app{
-		cfg:          cfg,
-		db:           db,
-		templates:    mustTemplates(),
-		loginLimiter: newLoginLimiter(defaultLoginMaxFailures, defaultLoginWindow, defaultLoginLockout, defaultLoginMaxEntries),
+		cfg:           cfg,
+		db:            db,
+		templates:     mustTemplates(),
+		loginLimiter:  newLoginLimiter(defaultLoginMaxFailures, defaultLoginWindow, defaultLoginLockout, defaultLoginMaxEntries),
+		settingsCache: settingsCacheFor(db),
 	}
 }
 
@@ -264,5 +266,109 @@ func TestServerErrorRedactsDetails(t *testing.T) {
 	}
 	if !strings.Contains(body, "服务器内部错误") {
 		t.Fatalf("response should contain generic Chinese error, got %q", body)
+	}
+}
+
+func TestCSPAndCSRFRenderMeta(t *testing.T) {
+	a := newTestApp(t)
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/login", nil)
+	a.withCommon(http.HandlerFunc(a.handleLogin)).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("login GET status: got %d", rr.Code)
+	}
+	csp := rr.Header().Get("Content-Security-Policy")
+	if csp == "" {
+		t.Fatalf("missing CSP header")
+	}
+	if strings.Contains(csp, "unsafe-inline") {
+		t.Fatalf("CSP should not contain unsafe-inline: %s", csp)
+	}
+	if !strings.Contains(csp, "'nonce-") || !strings.Contains(csp, "object-src 'none'") {
+		t.Fatalf("CSP missing nonce or hardening directives: %s", csp)
+	}
+	body := rr.Body.String()
+	if !regexp.MustCompile(`<style nonce="[^"]+">`).MatchString(body) {
+		t.Fatalf("rendered page missing nonce on style tag")
+	}
+	if !regexp.MustCompile(`<script nonce="[^"]+">`).MatchString(body) {
+		t.Fatalf("rendered page missing nonce on script tag")
+	}
+	if !strings.Contains(body, `name="csrf_token"`) {
+		t.Fatalf("rendered login form missing CSRF token")
+	}
+	if len(rr.Result().Cookies()) == 0 {
+		t.Fatalf("expected CSRF cookie to be set")
+	}
+}
+
+func TestCSRFRejectsMissingToken(t *testing.T) {
+	a := newTestApp(t)
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(url.Values{"password": {"wrong"}}.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	a.withCommon(http.HandlerFunc(a.handleLogin)).ServeHTTP(rr, req)
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("missing CSRF should be rejected with 403, got %d", rr.Code)
+	}
+}
+
+func TestCSRFAllowsValidToken(t *testing.T) {
+	a := newTestApp(t)
+	getRR := httptest.NewRecorder()
+	getReq := httptest.NewRequest(http.MethodGet, "/login", nil)
+	a.withCommon(http.HandlerFunc(a.handleLogin)).ServeHTTP(getRR, getReq)
+
+	var csrfCookie *http.Cookie
+	for _, c := range getRR.Result().Cookies() {
+		if c.Name == csrfCookieName(a.cfg.cookieName) {
+			csrfCookie = c
+			break
+		}
+	}
+	if csrfCookie == nil {
+		t.Fatalf("csrf cookie not set")
+	}
+	secret, ok, err := getSetting(a.db, settingCookieSecret)
+	if err != nil || !ok {
+		t.Fatalf("cookie secret missing: ok=%v err=%v", ok, err)
+	}
+	token, ok := validateSignedToken(csrfCookie.Value, secret)
+	if !ok || token == "" {
+		t.Fatalf("csrf cookie invalid")
+	}
+
+	postRR := httptest.NewRecorder()
+	form := url.Values{"password": {"wrong"}, csrfFieldName: {token}}
+	postReq := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(form.Encode()))
+	postReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	postReq.AddCookie(csrfCookie)
+	a.withCommon(http.HandlerFunc(a.handleLogin)).ServeHTTP(postRR, postReq)
+	if postRR.Code == http.StatusForbidden {
+		t.Fatalf("valid CSRF token should not be rejected")
+	}
+}
+
+func TestSettingsCacheUpdatesAndInvalidates(t *testing.T) {
+	a := newTestApp(t)
+	if err := setSetting(a.db, "cache_test", "one"); err != nil {
+		t.Fatalf("set one: %v", err)
+	}
+	got, ok, err := getSetting(a.db, "cache_test")
+	if err != nil || !ok || got != "one" {
+		t.Fatalf("get one: got=%q ok=%v err=%v", got, ok, err)
+	}
+	if _, err := a.db.Exec(`UPDATE settings SET value='two' WHERE key='cache_test'`); err != nil {
+		t.Fatalf("manual update: %v", err)
+	}
+	got, ok, err = getSetting(a.db, "cache_test")
+	if err != nil || !ok || got != "one" {
+		t.Fatalf("cache should keep old value before invalidate: got=%q ok=%v err=%v", got, ok, err)
+	}
+	invalidateSettingsCache(a.db)
+	got, ok, err = getSetting(a.db, "cache_test")
+	if err != nil || !ok || got != "two" {
+		t.Fatalf("cache should reload after invalidate: got=%q ok=%v err=%v", got, ok, err)
 	}
 }

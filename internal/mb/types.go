@@ -68,7 +68,11 @@ const (
 	backupMaxBytes       int64 = 10 << 20
 
 	sessionDuration        = 7 * 24 * time.Hour
+	csrfDuration           = 24 * time.Hour
 	maxFormBodyBytes int64 = 1 << 20
+
+	csrfFieldName  = "csrf_token"
+	csrfHeaderName = "X-CSRF-Token"
 
 	defaultLoginMaxFailures = 5
 	defaultLoginWindow      = 15 * time.Minute
@@ -98,13 +102,20 @@ type config struct {
 	trustedProxyCIDRs []*net.IPNet
 }
 type app struct {
-	cfg          config
-	db           *sql.DB
-	templates    map[string]*template.Template
-	loginLimiter *loginLimiter
-	fxMu         sync.Mutex
-	fxUpdating   bool
+	cfg           config
+	db            *sql.DB
+	templates     map[string]*template.Template
+	loginLimiter  *loginLimiter
+	settingsCache *settingsCache
+	fxMu          sync.Mutex
+	fxUpdating    bool
 }
+
+type RenderMeta struct {
+	CSPNonce  string
+	CSRFToken string
+}
+
 type domainRow struct {
 	ID               int64
 	Domain           string
@@ -226,6 +237,7 @@ type fxInfo struct {
 	LastError     string
 }
 type dashboardVM struct {
+	RenderMeta
 	NowISO              string
 	IsAdmin             bool
 	PublicMode          bool
@@ -256,12 +268,14 @@ type dashboardVM struct {
 	AllExpiring30Total  int
 }
 type loginVM struct {
+	RenderMeta
 	IsAdmin    bool
 	PublicMode bool
 	FaviconURL string
 	Error      string
 }
 type settingsVM struct {
+	RenderMeta
 	IsAdmin                   bool
 	PublicMode                bool
 	FaviconURL                string
@@ -295,6 +309,7 @@ type settingsVM struct {
 	Notice                    string
 }
 type assetFormVM struct {
+	RenderMeta
 	IsAdmin    bool
 	PublicMode bool
 	FaviconURL string

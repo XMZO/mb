@@ -29,10 +29,11 @@ func Run() {
 	}
 
 	a := &app{
-		cfg:          cfg,
-		db:           db,
-		templates:    mustTemplates(),
-		loginLimiter: newLoginLimiter(cfg.loginMaxFailures, cfg.loginWindow, cfg.loginLockout, cfg.loginMaxEntries),
+		cfg:           cfg,
+		db:            db,
+		templates:     mustTemplates(),
+		loginLimiter:  newLoginLimiter(cfg.loginMaxFailures, cfg.loginWindow, cfg.loginLockout, cfg.loginMaxEntries),
+		settingsCache: settingsCacheFor(db),
 	}
 
 	go a.startReminderLoop()

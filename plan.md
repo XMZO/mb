@@ -14,9 +14,9 @@
 | ~~P1-1~~ | ✅ 原始错误信息脱敏(5xx/设置页内部错误) | **已完成** | 安全/健壮性 | 中 |
 | ~~P1-2~~ | ✅ 仓库卫生:新仓库已初始化 + 完整 `.gitignore` | **已完成** | 工程 | 极小 |
 | ~~P1-3~~ | ✅ main/templates 拆成模块化内部包 + 外置模板目录 | **已完成** | 可维护性/前端可替换 | 中 |
-| P2-1 | CSP 去除 `unsafe-inline` | 🟢 可选 | 安全 | 中 |
-| P2-2 | 增加 CSRF token(纵深防御) | 🟢 可选 | 安全 | 中 |
-| P2-3 | settings 表重复读取,批量/缓存 | 🟢 可选 | 性能 | 中 |
+| ~~P2-1~~ | ✅ CSP 去除 `unsafe-inline`,改 nonce + 原生 JS | **已完成** | 安全 | 中 |
+| ~~P2-2~~ | ✅ 增加 CSRF token(表单 + fetch) | **已完成** | 安全 | 中 |
+| ~~P2-3~~ | ✅ settings 一次性加载 + 缓存失效 | **已完成** | 性能 | 中 |
 
 ---
 
@@ -216,15 +216,41 @@
 
 ## P2 · 可选(纵深防御 / 优化)
 
-### P2-1 CSP 收紧
+### P2-1 CSP 收紧 — ✅ 已完成
+
+> ✅ 2026-07-01 已完成(`go build` + `go test -v` 通过):
+> - `Content-Security-Policy` 已移除 `unsafe-inline`。
+> - 每次请求生成 CSP nonce,所有内联 `<style>` / `<script>` 都通过 `nonce="{{.CSPNonce}}"` 授权。
+> - 为避免 Bootstrap JS/Popper 动态写入行内 style 破坏严格 CSP,已移除 Bootstrap JS 依赖,改用少量 nonce 原生 JS 处理 dropdown/toast/confirm。
+> - 模板中行内 `style="..."`、`onclick=`、`onsubmit=` 已清理为 CSS class 与 `data-confirm`。
+> - 新增 `TestCSPAndCSRFRenderMeta` 与模板扫描复核,确认响应 CSP 不含 `unsafe-inline` 且页面含 nonce。
+
+**原计划**
 - 现 `script-src` / `style-src` 含 `'unsafe-inline'`(`main.go:853`),削弱 XSS 纵深防御(模板自动转义已兜底)。
 - 方案:内联脚本/样式改为外部文件或加 `nonce`,随后移除 `'unsafe-inline'`。工作量取决于模板里内联代码量。
 
-### P2-2 CSRF token
+### P2-2 CSRF token — ✅ 已完成
+
+> ✅ 2026-07-01 已完成:
+> - `withCommon` 为安全方法(GET/HEAD/OPTIONS/TRACE)确保 CSRF 签名 cookie,为非安全方法统一校验。
+> - CSRF token 使用独立签名 cookie(`mb_admin_csrf` 类似命名) + 表单隐藏字段 / `X-CSRF-Token` header。
+> - 所有 POST 表单已注入 `{{template "csrf" .}}`;dashboard 的 JSON/fetch 请求已加 `X-CSRF-Token`。
+> - 登录 POST 也纳入 CSRF 防护,防登录 CSRF。
+> - 新增 `TestCSRFRejectsMissingToken` / `TestCSRFAllowsValidToken`。
+
+**原计划**
 - 现仅靠 `SameSite=Lax` 防护(对 POST 表单已基本够用)。
 - 如需纵深防御:采用 synchronizer token 或 double-submit cookie,在所有状态变更表单注入隐藏 token 并在服务端校验。
 
-### P2-3 settings 读取优化
+### P2-3 settings 读取优化 — ✅ 已完成
+
+> ✅ 2026-07-01 已完成:
+> - 新增 `settingsCache`:首次读取一次性 `SELECT key,value FROM settings` 加载整表。
+> - `getSetting` / `mustGet*Setting` 走缓存;`setSetting` 成功写入后同步缓存。
+> - 备份恢复设置(`restoreSettings`)这类直接改 settings 表的事务 commit 后会 `invalidateSettingsCache`。
+> - 新增 `TestSettingsCacheUpdatesAndInvalidates`。
+
+**原计划**
 - 单次请求会多次查询 settings 表(中间件查 `public_mode`,handler 再查一次,各 `show_*` 逐条查)。
 - 方案:一次性 `SELECT key,value FROM settings` 载入 map;或加带失效的进程内缓存。SQLite 本地读很快,收益有限,低优先级。
 
@@ -237,6 +263,6 @@
 3. ~~**P1-2**(仓库卫生,顺手)。~~ ✅ 已完成
 4. ~~**P1-1**(错误脱敏,可与 P1-3 结合)。~~ ✅ 已完成
 5. ~~**P1-3**(拆分)—— 放在功能稳定后做,纯重构,单独一个提交/PR。~~ ✅ 已完成
-6. **P2** 视需要而定。
+6. ~~**P2** 视需要而定。~~ ✅ 已完成
 
 > 每一项建议独立提交,便于回滚与 review。重构类改动(P1-3)与逻辑改动分开提交。

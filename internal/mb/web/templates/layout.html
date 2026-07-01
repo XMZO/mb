@@ -1,3 +1,4 @@
+{{define "csrf"}}{{if .CSRFToken}}<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">{{end}}{{end}}
 {{define "layout"}}
 <!doctype html>
 <html lang="zh-CN" data-bs-theme="dark">
@@ -7,7 +8,7 @@
   <title>MB 资产面板</title>
   {{if .FaviconURL}}<link rel="icon" href="{{.FaviconURL}}">{{end}}
   <link href="https://testingcf.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-  <style>
+  <style nonce="{{.CSPNonce}}">
     :root {
       --panel: rgba(255,255,255,0.06);
       --panel-border: rgba(255,255,255,0.10);
@@ -44,6 +45,23 @@
     .badge { font-weight: 650; letter-spacing: .2px; }
     .btn-outline-light { border-color: rgba(255,255,255,0.25); }
     a { text-decoration: none; }
+
+    .minw-140 { min-width: 140px; }
+    .maxw-120 { max-width: 120px; }
+    .maxw-140 { max-width: 140px; }
+    .maxw-160 { max-width: 160px; }
+    .maxw-200 { max-width: 200px; }
+    .maxw-220 { max-width: 220px; }
+    .wauto { width: auto !important; }
+    .w-44 { width: 44px; }
+    .w-160 { width: 160px; }
+    .w-170 { width: 170px; }
+    .w-180 { width: 180px; }
+    .w-190 { width: 190px; }
+    .w-210 { width: 210px; }
+    .w-220 { width: 220px; }
+    .w-260 { width: 260px; }
+    .favicon-preview { border-radius: 4px; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
     .clickable { cursor: pointer; }
     .batch-check { cursor: pointer; }
@@ -137,6 +155,7 @@
         {{if .IsAdmin}}
           <a class="btn btn-sm btn-outline-light" href="/admin/settings">设置</a>
           <form method="post" action="/logout" class="d-inline">
+            {{template "csrf" .}}
             <button class="btn btn-sm btn-light">退出</button>
           </form>
         {{else}}
@@ -159,18 +178,20 @@
     </div>
   </div>
 
-  <script src="https://testingcf.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-  <script>
+  <script nonce="{{.CSPNonce}}">
     (function () {
       const toastEl = document.getElementById('mbToast');
       const toastBody = document.getElementById('mbToastBody');
-      const hasBootstrap = typeof window.bootstrap !== 'undefined';
-      const toast = (toastEl && hasBootstrap && bootstrap.Toast) ? new bootstrap.Toast(toastEl, { delay: 1400 }) : null;
+      let toastTimer = null;
 
       function showToast(message) {
-        if (!toast || !toastBody) return;
+        if (!toastEl || !toastBody) return;
         toastBody.textContent = message || '完成';
-        toast.show();
+        toastEl.classList.add('show');
+        if (toastTimer) window.clearTimeout(toastTimer);
+        toastTimer = window.setTimeout(function () {
+          toastEl.classList.remove('show');
+        }, 1400);
       }
 
       document.addEventListener('click', async function (e) {
@@ -186,35 +207,48 @@
         }
       });
 
-      if (!hasBootstrap) {
-        const toggles = document.querySelectorAll('.dropdown-toggle');
-        const closeAll = () => {
-          document.querySelectorAll('.dropdown.show').forEach((el) => {
-            el.classList.remove('show');
-            const menu = el.querySelector('.dropdown-menu');
-            const toggle = el.querySelector('.dropdown-toggle');
-            if (menu) menu.classList.remove('show');
-            if (toggle) toggle.setAttribute('aria-expanded', 'false');
-          });
-        };
-        toggles.forEach((toggle) => {
-          toggle.addEventListener('click', function (e) {
-            const parent = toggle.closest('.dropdown');
-            const menu = parent ? parent.querySelector('.dropdown-menu') : null;
-            if (!parent || !menu) return;
-            e.preventDefault();
-            e.stopPropagation();
-            const shouldOpen = !parent.classList.contains('show');
-            closeAll();
-            if (shouldOpen) {
-              parent.classList.add('show');
-              menu.classList.add('show');
-              toggle.setAttribute('aria-expanded', 'true');
-            }
-          });
+
+      document.addEventListener('submit', function (e) {
+        const form = e.target && e.target.closest ? e.target.closest('form[data-confirm]') : null;
+        if (!form) return;
+        const message = form.getAttribute('data-confirm') || '确认执行该操作？';
+        if (!window.confirm(message)) e.preventDefault();
+      });
+
+      document.addEventListener('click', function (e) {
+        const btn = e.target.closest('button[data-confirm], input[data-confirm]');
+        if (!btn) return;
+        const message = btn.getAttribute('data-confirm') || '确认执行该操作？';
+        if (!window.confirm(message)) e.preventDefault();
+      });
+
+      const toggles = document.querySelectorAll('.dropdown-toggle');
+      const closeAll = () => {
+        document.querySelectorAll('.dropdown.show').forEach((el) => {
+          el.classList.remove('show');
+          const menu = el.querySelector('.dropdown-menu');
+          const toggle = el.querySelector('.dropdown-toggle');
+          if (menu) menu.classList.remove('show');
+          if (toggle) toggle.setAttribute('aria-expanded', 'false');
         });
-        document.addEventListener('click', closeAll);
-      }
+      };
+      toggles.forEach((toggle) => {
+        toggle.addEventListener('click', function (e) {
+          const parent = toggle.closest('.dropdown');
+          const menu = parent ? parent.querySelector('.dropdown-menu') : null;
+          if (!parent || !menu) return;
+          e.preventDefault();
+          e.stopPropagation();
+          const shouldOpen = !parent.classList.contains('show');
+          closeAll();
+          if (shouldOpen) {
+            parent.classList.add('show');
+            menu.classList.add('show');
+            toggle.setAttribute('aria-expanded', 'true');
+          }
+        });
+      });
+      document.addEventListener('click', closeAll);
 
       const baseSelect = document.getElementById('baseCurrency');
       if (baseSelect) {

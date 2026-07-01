@@ -1,6 +1,7 @@
 package mb
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -84,15 +85,176 @@ func newCookieSecret() (string, error) {
 	}
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
+
+type requestContextKey string
+
+const (
+	cspNonceContextKey  requestContextKey = "csp_nonce"
+	csrfTokenContextKey requestContextKey = "csrf_token"
+)
+
+type secureResponseWriter struct {
+	http.ResponseWriter
+	meta RenderMeta
+}
+
+func (w *secureResponseWriter) renderMeta() RenderMeta {
+	return w.meta
+}
+
 func (a *app) withCommon(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nonce, err := randomToken(18)
+		if err != nil {
+			a.serverError(w, err)
+			return
+		}
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Referrer-Policy", "no-referrer")
-		w.Header().Set("Content-Security-Policy", "default-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' https: 'unsafe-inline'; img-src 'self' data: https:; base-uri 'self'; form-action 'self'; frame-ancestors 'none'")
+		w.Header().Set("Content-Security-Policy", a.contentSecurityPolicy(nonce))
 
-		next.ServeHTTP(w, r)
+		csrfToken, err := a.prepareCSRF(w, r)
+		if err != nil {
+			log.Printf("csrf rejected: %v", err)
+			http.Error(w, "CSRF token invalid", http.StatusForbidden)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), cspNonceContextKey, nonce)
+		ctx = context.WithValue(ctx, csrfTokenContextKey, csrfToken)
+		secureW := &secureResponseWriter{ResponseWriter: w, meta: RenderMeta{CSPNonce: nonce, CSRFToken: csrfToken}}
+		next.ServeHTTP(secureW, r.WithContext(ctx))
 	})
+}
+
+func (a *app) contentSecurityPolicy(nonce string) string {
+	q := "'nonce-" + nonce + "'"
+	return strings.Join([]string{
+		"default-src 'self'",
+		"style-src 'self' https: " + q,
+		"script-src 'self' https: " + q,
+		"img-src 'self' data: https:",
+		"connect-src 'self'",
+		"base-uri 'self'",
+		"form-action 'self'",
+		"frame-ancestors 'none'",
+		"object-src 'none'",
+	}, "; ")
+}
+
+func randomToken(n int) (string, error) {
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+func (a *app) prepareCSRF(w http.ResponseWriter, r *http.Request) (string, error) {
+	secret, ok, err := getSetting(a.db, settingCookieSecret)
+	if err != nil {
+		return "", err
+	}
+	if !ok || secret == "" {
+		return "", errors.New("missing cookie secret")
+	}
+
+	if isUnsafeMethod(r.Method) {
+		return a.validateCSRFRequest(w, r, secret)
+	}
+	return a.ensureCSRFCookie(w, r, secret)
+}
+
+func isUnsafeMethod(method string) bool {
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace:
+		return false
+	default:
+		return true
+	}
+}
+
+func csrfCookieName(cookieName string) string {
+	return cookieName + "_csrf"
+}
+
+func (a *app) ensureCSRFCookie(w http.ResponseWriter, r *http.Request, secret string) (string, error) {
+	if c, err := r.Cookie(csrfCookieName(a.cfg.cookieName)); err == nil {
+		if token, ok := validateSignedToken(c.Value, secret); ok {
+			return token, nil
+		}
+	}
+	token, err := randomToken(32)
+	if err != nil {
+		return "", err
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     csrfCookieName(a.cfg.cookieName),
+		Value:    signToken(token, secret),
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Expires:  time.Now().Add(csrfDuration),
+		Secure:   requestIsSecure(r),
+	})
+	return token, nil
+}
+
+func (a *app) validateCSRFRequest(w http.ResponseWriter, r *http.Request, secret string) (string, error) {
+	cookie, err := r.Cookie(csrfCookieName(a.cfg.cookieName))
+	if err != nil {
+		return "", errors.New("missing csrf cookie")
+	}
+	token, ok := validateSignedToken(cookie.Value, secret)
+	if !ok {
+		return "", errors.New("invalid csrf cookie")
+	}
+	bodyLimit := maxFormBodyBytes
+	if strings.HasPrefix(r.URL.Path, "/admin/backup/import") {
+		bodyLimit = backupMaxBytes
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, bodyLimit)
+	provided := strings.TrimSpace(r.Header.Get(csrfHeaderName))
+	if provided == "" {
+		ct := strings.ToLower(r.Header.Get("Content-Type"))
+		if strings.HasPrefix(ct, "multipart/form-data") {
+			if err := r.ParseMultipartForm(bodyLimit); err != nil {
+				return "", err
+			}
+		} else if err := r.ParseForm(); err != nil {
+			return "", err
+		}
+		provided = strings.TrimSpace(r.Form.Get(csrfFieldName))
+	}
+	if provided == "" || !hmac.Equal([]byte(provided), []byte(token)) {
+		return "", errors.New("csrf token mismatch")
+	}
+	return token, nil
+}
+
+func signToken(token, secret string) string {
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(token))
+	sig := mac.Sum(nil)
+	return token + "." + base64.RawURLEncoding.EncodeToString(sig)
+}
+
+func validateSignedToken(value, secret string) (string, bool) {
+	parts := strings.Split(value, ".")
+	if len(parts) != 2 || parts[0] == "" {
+		return "", false
+	}
+	sig, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return "", false
+	}
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(parts[0]))
+	if !hmac.Equal(mac.Sum(nil), sig) {
+		return "", false
+	}
+	return parts[0], true
 }
 func (a *app) withView(fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

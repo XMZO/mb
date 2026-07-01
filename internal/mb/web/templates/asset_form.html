@@ -9,6 +9,7 @@
 
   <div class="p-4 rounded-4 bg-panel">
     <form method="post" action="{{.Action}}">
+      {{template "csrf" .}}
       {{if eq .Kind "domain"}}
         <div class="row g-3">
           <div class="col-12 col-lg-6">
@@ -90,7 +91,7 @@
                 <div class="disk-row">
                   <div class="input-group">
                     <input class="form-control mono" name="disk_gb" value='{{.SizeGB}}' inputmode="numeric" list="diskList" placeholder="80">
-                    <select class="form-select mono" name="disk_type" style="max-width: 140px;">
+                    <select class="form-select mono" name="disk_type" class="maxw-140">
                       <option value="" {{if eq .Type ""}}selected{{end}}>不标注</option>
                       <option value="SSD" {{if eq .Type "SSD"}}selected{{end}}>SSD</option>
                       <option value="HDD" {{if eq .Type "HDD"}}selected{{end}}>HDD</option>
@@ -123,7 +124,7 @@
             <label class="form-label">带宽</label>
             <div class="input-group">
               <input class="form-control mono" name="bandwidth_value" value='{{index .Item "bandwidth_value"}}' inputmode="decimal" list="bandwidthList" placeholder="100">
-              <select class="form-select mono" name="bandwidth_unit" style="max-width: 120px;">
+              <select class="form-select mono" name="bandwidth_unit" class="maxw-120">
                 <option value="Mbps" {{if eq (index .Item "bandwidth_unit") "Mbps"}}selected{{end}}>Mbps</option>
                 <option value="Gbps" {{if eq (index .Item "bandwidth_unit") "Gbps"}}selected{{end}}>Gbps</option>
               </select>
@@ -271,7 +272,7 @@
             <div class="disk-row">
               <div class="input-group">
                 <input class="form-control mono" name="disk_gb" inputmode="numeric" list="diskList" placeholder="80">
-                <select class="form-select mono" name="disk_type" style="max-width: 140px;">
+                <select class="form-select mono" name="disk_type" class="maxw-140">
                   <option value="">不标注</option>
                   <option value="SSD">SSD</option>
                   <option value="HDD">HDD</option>
@@ -282,7 +283,7 @@
           </template>
         </div>
 
-        <script>
+        <script nonce="{{.CSPNonce}}">
           (function () {
             const list = document.getElementById('diskRows');
             const tpl = document.getElementById('diskRowTpl');
@@ -338,7 +339,7 @@
         <a class="btn btn-outline-light" href="/">取消</a>
       </div>
     </form>
-    <script>
+    <script nonce="{{.CSPNonce}}">
       (function () {
         const toggles = document.querySelectorAll('[data-permanent-target]');
         if (!toggles.length) return;

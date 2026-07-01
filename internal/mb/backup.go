@@ -447,6 +447,9 @@ func (a *app) applyBackup(ctx context.Context, payload backupPayload, restoreSet
 	if err = tx.Commit(); err != nil {
 		return err
 	}
+	if restoreSettings {
+		invalidateSettingsCache(a.db)
+	}
 	return nil
 }
 func decodeBackup(data []byte) (backupPayload, error) {

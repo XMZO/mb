@@ -14,7 +14,7 @@
               <div class="text-muted-2 small mt-1">登录后查看完整统计</div>
             {{end}}
           </div>
-          <div style="min-width: 140px;">
+          <div class="minw-140">
             <label class="form-label text-muted-2 small mb-1">统计币种</label>
             <select id="baseCurrency" class="form-select form-select-sm mono">
               <option value="CNY" {{if eq .BaseCurrency "CNY"}}selected{{end}}>CNY</option>
@@ -61,11 +61,26 @@
         <div class="dropdown">
           <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">排序</button>
           <ul class="dropdown-menu dropdown-menu-dark">
-            <li><form method="post" action="/admin/sort/domains/alpha"><button class="dropdown-item">按首字母</button></form></li>
-            <li><form method="post" action="/admin/sort/domains/suffix"><button class="dropdown-item">按后缀</button></form></li>
-            <li><form method="post" action="/admin/sort/domains/expiry"><button class="dropdown-item">按到期时间</button></form></li>
-            <li><form method="post" action="/admin/sort/domains/price?base={{.BaseCurrency}}"><button class="dropdown-item">按续费价格（折合{{.BaseCurrency}}）</button></form></li>
-            <li><form method="post" action="/admin/sort/domains/registrar"><button class="dropdown-item">按注册商</button></form></li>
+            <li><form method="post" action="/admin/sort/domains/alpha">
+              {{template "csrf" .}}
+              <button class="dropdown-item">按首字母</button>
+            </form></li>
+            <li><form method="post" action="/admin/sort/domains/suffix">
+              {{template "csrf" .}}
+              <button class="dropdown-item">按后缀</button>
+            </form></li>
+            <li><form method="post" action="/admin/sort/domains/expiry">
+              {{template "csrf" .}}
+              <button class="dropdown-item">按到期时间</button>
+            </form></li>
+            <li><form method="post" action="/admin/sort/domains/price?base={{.BaseCurrency}}">
+              {{template "csrf" .}}
+              <button class="dropdown-item">按续费价格（折合{{.BaseCurrency}}）</button>
+            </form></li>
+            <li><form method="post" action="/admin/sort/domains/registrar">
+              {{template "csrf" .}}
+              <button class="dropdown-item">按注册商</button>
+            </form></li>
           </ul>
         </div>
         <div class="dropdown">
@@ -85,9 +100,9 @@
     {{end}}
   </div>
   <div class="d-flex flex-wrap align-items-center gap-2 mb-2 toolbar-row">
-    <input id="domainFilterDomain" class="form-control form-control-sm mono" style="max-width: 220px;" placeholder="按域名搜索">
-    <input id="domainFilterRegistrar" class="form-control form-control-sm" style="max-width: 200px;" placeholder="按注册商搜索">
-    <input id="domainFilterNotes" class="form-control form-control-sm" style="max-width: 200px;" placeholder="按备注搜索">
+    <input id="domainFilterDomain" class="form-control form-control-sm mono maxw-220" placeholder="按域名搜索">
+    <input id="domainFilterRegistrar" class="form-control form-control-sm maxw-200" placeholder="按注册商搜索">
+    <input id="domainFilterNotes" class="form-control form-control-sm maxw-200" placeholder="按备注搜索">
     <span id="domainFilterCount" class="text-muted-3 small"></span>
     <button type="button" class="btn btn-sm btn-outline-light view-toggle">网格模式</button>
     <button type="button" class="btn btn-sm btn-outline-light compact-toggle">紧凑模式</button>
@@ -98,7 +113,7 @@
       <input class="form-check-input" type="checkbox" id="domainSelectAll">
       <label class="form-check-label" for="domainSelectAll">全选当前页</label>
     </div>
-    <select id="domainBatchAction" class="form-select form-select-sm mono" style="width: auto;">
+    <select id="domainBatchAction" class="form-select form-select-sm mono wauto">
       <option value="">批量操作...</option>
       <option value="renew">设置到期（续费）</option>
       <option value="pin">置顶</option>
@@ -116,7 +131,7 @@
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
     <div class="d-flex align-items-center gap-2">
       <span class="text-muted-3 small">每页</span>
-      <select id="domainPageSize" class="form-select form-select-sm mono" style="width: auto;">
+      <select id="domainPageSize" class="form-select form-select-sm mono wauto">
         <option value="12">12</option>
         <option value="24">24</option>
         <option value="48">48</option>
@@ -136,13 +151,13 @@
         <table class="table table-dark table-hover align-middle mb-0">
           <thead>
             <tr>
-              {{if .IsAdmin}}<th style="width: 44px;"></th>{{end}}
-              <th style="width: 220px;">域名</th>
-              <th style="width: 160px;">注册商</th>
-              <th style="width: 170px;">到期</th>
-              <th style="width: 170px;">续费</th>
+              {{if .IsAdmin}}<th class="w-44"></th>{{end}}
+              <th class="w-220">域名</th>
+              <th class="w-160">注册商</th>
+              <th class="w-170">到期</th>
+              <th class="w-170">续费</th>
               <th>备注</th>
-              {{if .IsAdmin}}<th style="width: 210px;"></th>{{end}}
+              {{if .IsAdmin}}<th class="w-210"></th>{{end}}
             </tr>
           </thead>
           <tbody id="domainTableBody" {{if .IsAdmin}}data-sort-endpoint="/admin/sort/domains"{{end}}>
@@ -215,12 +230,14 @@
                 {{if $.IsAdmin}}
                   <td class="text-end">
                     <form method="post" action="/domain/pin?id={{.ID}}" class="d-inline">
+                      {{template "csrf" .}}
                       <input type="hidden" name="pinned" value="{{if .Pinned}}0{{else}}1{{end}}">
                       <button class="btn btn-sm btn-outline-warning">{{if .Pinned}}取消置顶{{else}}置顶{{end}}</button>
                     </form>
                     <button type="button" class="btn btn-sm btn-outline-light" data-renew="domain" data-id="{{.ID}}" data-date="{{if .IsPermanent}}永久{{else}}{{.ExpiresAt}}{{end}}">续费</button>
                     <a class="btn btn-sm btn-outline-light" href="/domain/edit?id={{.ID}}">编辑</a>
-                    <form method="post" action="/domain/delete?id={{.ID}}" class="d-inline" onsubmit="return confirm('确认删除该域名记录？')">
+                    <form method="post" action="/domain/delete?id={{.ID}}" class="d-inline" data-confirm="确认删除该域名记录？">
+                      {{template "csrf" .}}
                       <button class="btn btn-sm btn-danger">删除</button>
                     </form>
                   </td>
@@ -287,12 +304,14 @@
                 {{if $.IsAdmin}}
                   <div class="d-flex flex-wrap gap-2 mt-1">
                     <form method="post" action="/domain/pin?id={{.ID}}" class="d-inline">
+                      {{template "csrf" .}}
                       <input type="hidden" name="pinned" value="{{if .Pinned}}0{{else}}1{{end}}">
                       <button class="btn btn-sm btn-outline-warning">{{if .Pinned}}取消置顶{{else}}置顶{{end}}</button>
                     </form>
                     <button type="button" class="btn btn-sm btn-outline-light" data-renew="domain" data-id="{{.ID}}" data-date="{{if .IsPermanent}}永久{{else}}{{.ExpiresAt}}{{end}}">续费</button>
                     <a class="btn btn-sm btn-outline-light" href="/domain/edit?id={{.ID}}">编辑</a>
-                    <form method="post" action="/domain/delete?id={{.ID}}" onsubmit="return confirm('确认删除该域名记录？')">
+                    <form method="post" action="/domain/delete?id={{.ID}}" data-confirm="确认删除该域名记录？">
+                      {{template "csrf" .}}
                       <button class="btn btn-sm btn-danger">删除</button>
                     </form>
                   </div>
@@ -315,10 +334,22 @@
         <div class="dropdown">
           <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">排序</button>
           <ul class="dropdown-menu dropdown-menu-dark">
-            <li><form method="post" action="/admin/sort/vps/region"><button class="dropdown-item">按地区</button></form></li>
-            <li><form method="post" action="/admin/sort/vps/vendor"><button class="dropdown-item">按厂商</button></form></li>
-            <li><form method="post" action="/admin/sort/vps/expiry"><button class="dropdown-item">按到期时间</button></form></li>
-            <li><form method="post" action="/admin/sort/vps/price?base={{.BaseCurrency}}"><button class="dropdown-item">按年化续费（折合{{.BaseCurrency}}）</button></form></li>
+            <li><form method="post" action="/admin/sort/vps/region">
+              {{template "csrf" .}}
+              <button class="dropdown-item">按地区</button>
+            </form></li>
+            <li><form method="post" action="/admin/sort/vps/vendor">
+              {{template "csrf" .}}
+              <button class="dropdown-item">按厂商</button>
+            </form></li>
+            <li><form method="post" action="/admin/sort/vps/expiry">
+              {{template "csrf" .}}
+              <button class="dropdown-item">按到期时间</button>
+            </form></li>
+            <li><form method="post" action="/admin/sort/vps/price?base={{.BaseCurrency}}">
+              {{template "csrf" .}}
+              <button class="dropdown-item">按年化续费（折合{{.BaseCurrency}}）</button>
+            </form></li>
           </ul>
         </div>
         <a class="btn btn-sm btn-light" href="/vps/new">新增 VPS</a>
@@ -326,10 +357,10 @@
     {{end}}
   </div>
   <div class="d-flex flex-wrap align-items-center gap-2 mb-2 toolbar-row">
-    <input id="vpsFilterVendor" class="form-control form-control-sm" style="max-width: 200px;" placeholder="按厂商搜索">
-    <input id="vpsFilterIP" class="form-control form-control-sm mono" style="max-width: 200px;" placeholder="按 IP 搜索">
-    <input id="vpsFilterRegion" class="form-control form-control-sm mono" style="max-width: 160px;" placeholder="按地区搜索">
-    <input id="vpsFilterNotes" class="form-control form-control-sm" style="max-width: 200px;" placeholder="按备注搜索">
+    <input id="vpsFilterVendor" class="form-control form-control-sm maxw-200" placeholder="按厂商搜索">
+    <input id="vpsFilterIP" class="form-control form-control-sm mono maxw-200" placeholder="按 IP 搜索">
+    <input id="vpsFilterRegion" class="form-control form-control-sm mono maxw-160" placeholder="按地区搜索">
+    <input id="vpsFilterNotes" class="form-control form-control-sm maxw-200" placeholder="按备注搜索">
     <span id="vpsFilterCount" class="text-muted-3 small"></span>
     <button type="button" class="btn btn-sm btn-outline-light view-toggle">网格模式</button>
     <button type="button" class="btn btn-sm btn-outline-light compact-toggle">紧凑模式</button>
@@ -340,7 +371,7 @@
       <input class="form-check-input" type="checkbox" id="vpsSelectAll">
       <label class="form-check-label" for="vpsSelectAll">全选当前页</label>
     </div>
-    <select id="vpsBatchAction" class="form-select form-select-sm mono" style="width: auto;">
+    <select id="vpsBatchAction" class="form-select form-select-sm mono wauto">
       <option value="">批量操作...</option>
       <option value="renew">设置到期（续费）</option>
       <option value="billing_months">设置付费周期（月）</option>
@@ -359,7 +390,7 @@
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
     <div class="d-flex align-items-center gap-2">
       <span class="text-muted-3 small">每页</span>
-      <select id="vpsPageSize" class="form-select form-select-sm mono" style="width: auto;">
+      <select id="vpsPageSize" class="form-select form-select-sm mono wauto">
         <option value="12">12</option>
         <option value="24">24</option>
         <option value="48">48</option>
@@ -379,14 +410,14 @@
         <table class="table table-dark table-hover align-middle mb-0">
           <thead>
             <tr>
-              {{if .IsAdmin}}<th style="width: 44px;"></th>{{end}}
-              <th style="width: 180px;">厂商</th>
-              <th style="width: 190px;">IP</th>
-              <th style="width: 260px;">配置</th>
-              <th style="width: 170px;">到期</th>
-              <th style="width: 170px;">续费</th>
+              {{if .IsAdmin}}<th class="w-44"></th>{{end}}
+              <th class="w-180">厂商</th>
+              <th class="w-190">IP</th>
+              <th class="w-260">配置</th>
+              <th class="w-170">到期</th>
+              <th class="w-170">续费</th>
               <th>备注</th>
-              {{if .IsAdmin}}<th style="width: 210px;"></th>{{end}}
+              {{if .IsAdmin}}<th class="w-210"></th>{{end}}
             </tr>
           </thead>
           <tbody id="vpsTableBody" {{if .IsAdmin}}data-sort-endpoint="/admin/sort/vps"{{end}}>
@@ -485,12 +516,14 @@
                 {{if $.IsAdmin}}
                   <td class="text-end">
                     <form method="post" action="/vps/pin?id={{.ID}}" class="d-inline">
+                      {{template "csrf" .}}
                       <input type="hidden" name="pinned" value="{{if .Pinned}}0{{else}}1{{end}}">
                       <button class="btn btn-sm btn-outline-warning">{{if .Pinned}}取消置顶{{else}}置顶{{end}}</button>
                     </form>
                     <button type="button" class="btn btn-sm btn-outline-light" data-renew="vps" data-id="{{.ID}}" data-date="{{if .IsPermanent}}永久{{else}}{{.ExpiresAt}}{{end}}">续费</button>
                     <a class="btn btn-sm btn-outline-light" href="/vps/edit?id={{.ID}}">编辑</a>
-                    <form method="post" action="/vps/delete?id={{.ID}}" class="d-inline" onsubmit="return confirm('确认删除该 VPS 记录？')">
+                    <form method="post" action="/vps/delete?id={{.ID}}" class="d-inline" data-confirm="确认删除该 VPS 记录？">
+                      {{template "csrf" .}}
                       <button class="btn btn-sm btn-danger">删除</button>
                     </form>
                   </td>
@@ -578,12 +611,14 @@
                 {{if $.IsAdmin}}
                   <div class="d-flex flex-wrap gap-2 mt-1">
                     <form method="post" action="/vps/pin?id={{.ID}}" class="d-inline">
+                      {{template "csrf" .}}
                       <input type="hidden" name="pinned" value="{{if .Pinned}}0{{else}}1{{end}}">
                       <button class="btn btn-sm btn-outline-warning">{{if .Pinned}}取消置顶{{else}}置顶{{end}}</button>
                     </form>
                     <button type="button" class="btn btn-sm btn-outline-light" data-renew="vps" data-id="{{.ID}}" data-date="{{if .IsPermanent}}永久{{else}}{{.ExpiresAt}}{{end}}">续费</button>
                     <a class="btn btn-sm btn-outline-light" href="/vps/edit?id={{.ID}}">编辑</a>
-                    <form method="post" action="/vps/delete?id={{.ID}}" onsubmit="return confirm('确认删除该 VPS 记录？')">
+                    <form method="post" action="/vps/delete?id={{.ID}}" data-confirm="确认删除该 VPS 记录？">
+                      {{template "csrf" .}}
                       <button class="btn btn-sm btn-danger">删除</button>
                     </form>
                   </div>
@@ -596,7 +631,7 @@
     </div>
   </div>
   {{if .IsAdmin}}
-  <script>
+  <script nonce="{{.CSPNonce}}">
     (function () {
       function setupSortable(bodyId) {
         const body = document.getElementById(bodyId);
@@ -620,7 +655,8 @@
             headers: {
               'Content-Type': 'application/json',
               'X-Requested-With': 'XMLHttpRequest',
-              'Accept': 'application/json'
+              'Accept': 'application/json',
+              'X-CSRF-Token': '{{.CSRFToken}}'
             },
             credentials: 'same-origin',
             body: JSON.stringify({ ids: ids })
@@ -729,7 +765,8 @@
             headers: {
               'Content-Type': 'application/json',
               'X-Requested-With': 'XMLHttpRequest',
-              'Accept': 'application/json'
+              'Accept': 'application/json',
+              'X-CSRF-Token': '{{.CSRFToken}}'
             },
             credentials: 'same-origin',
             body: JSON.stringify({ ids: ids })
@@ -816,7 +853,7 @@
           params.set('expires_at', next);
           fetch('/' + type + '/renew?id=' + encodeURIComponent(id), {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': '{{.CSRFToken}}' },
             body: params.toString()
           })
           .then((res) => {
@@ -833,7 +870,7 @@
     })();
   </script>
   {{end}}
-  <script>
+  <script nonce="{{.CSPNonce}}">
     (function () {
       const safeGet = (key) => {
         try { return localStorage.getItem(key) || ''; } catch (_) { return ''; }
@@ -972,7 +1009,8 @@
             headers: {
               'Content-Type': 'application/json',
               'X-Requested-With': 'XMLHttpRequest',
-              'Accept': 'application/json'
+              'Accept': 'application/json',
+              'X-CSRF-Token': '{{.CSRFToken}}'
             },
             credentials: 'same-origin',
             body: JSON.stringify({ ids: ids, action: action, value: value })

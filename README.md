@@ -119,6 +119,8 @@ Configuration is read from environment variables. The app automatically loads `.
 - 密码使用 BCrypt 存储,不保存明文。
 - 登录会话使用 HMAC-SHA256 签名 Cookie,并设置 `HttpOnly` / `SameSite=Lax` / HTTPS 下 `Secure`。
 - 登录接口默认启用限流,防止持续爆破。
+- 所有非安全方法请求会校验 CSRF token;表单使用隐藏字段,fetch/API 使用 `X-CSRF-Token`。
+- CSP 已移除 `unsafe-inline`;页面脚本/样式通过每请求 nonce 授权。
 - 内部错误不会直接返回原始错误信息,完整错误仅写入服务端日志。
 - `.env`、数据库和构建产物已通过 `.gitignore` 忽略;不要提交真实 `.env` 或 `mb.db`。
 
@@ -127,6 +129,8 @@ Configuration is read from environment variables. The app automatically loads `.
 - Passwords are stored with BCrypt; plaintext passwords are not stored.
 - Sessions use HMAC-SHA256-signed cookies with `HttpOnly`, `SameSite=Lax`, and `Secure` under HTTPS.
 - Login rate limiting is enabled by default.
+- Unsafe HTTP methods are protected by CSRF tokens; forms use hidden fields and fetch/API calls use `X-CSRF-Token`.
+- CSP no longer uses `unsafe-inline`; inline scripts/styles are authorized with per-request nonces.
 - Internal errors are redacted from HTTP responses; details are logged server-side.
 - `.env`, database files, and build artifacts are ignored by `.gitignore`; do not commit real `.env` or `mb.db`.
 
@@ -229,6 +233,8 @@ go test ./... -v
 - 备份导入/导出 round-trip
 - 默认管理员密码逻辑
 - 登录限流与反向代理 IP 识别
+- CSP nonce 与 CSRF token
+- settings 缓存失效
 - 内部错误脱敏
 
 Current tests cover:
@@ -237,6 +243,8 @@ Current tests cover:
 - Backup import/export round-trip
 - Admin password initialization/sync
 - Login limiter and reverse-proxy IP handling
+- CSP nonces and CSRF tokens
+- settings cache invalidation
 - Internal error redaction
 
 ---
