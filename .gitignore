@@ -10,6 +10,7 @@
 # Project binaries
 /mb
 /mb.exe
+.docker-windows/
 
 # Runtime data
 *.db

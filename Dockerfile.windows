@@ -1,0 +1,21 @@
+# escape=`
+
+ARG WINDOWS_BASE=mcr.microsoft.com/windows/nanoserver:ltsc2022
+
+FROM ${WINDOWS_BASE}
+
+WORKDIR C:/app
+
+USER ContainerAdministrator
+RUN mkdir C:\data && icacls C:\data /grant "ContainerUser:(OI)(CI)F"
+
+COPY .docker-windows/mb.exe C:/app/mb.exe
+
+ENV MB_ADDR=:15000
+ENV MB_DB=C:/data/mb.db
+
+EXPOSE 15000
+VOLUME ["C:/data"]
+
+USER ContainerUser
+ENTRYPOINT ["C:\\app\\mb.exe"]

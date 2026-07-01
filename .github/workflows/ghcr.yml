@@ -174,9 +174,94 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  windows-container-image:
+    name: Build image (${{ matrix.platform }})
+    needs: test
+    runs-on: ${{ matrix.runner }}
+    continue-on-error: ${{ matrix.optional }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows/amd64
+            runner: windows-2022
+            goarch: amd64
+            artifact: windows-amd64
+            base: mcr.microsoft.com/windows/nanoserver:ltsc2022
+            optional: false
+          - platform: windows/arm64
+            runner: windows-11-arm
+            goarch: arm64
+            artifact: windows-arm64
+            base: mcr.microsoft.com/windows/nanoserver:ltsc2022
+            optional: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+          cache: true
+
+      - name: Set lowercase image name
+        shell: pwsh
+        run: |
+          $imageName = "ghcr.io/$($env:GITHUB_REPOSITORY.ToLowerInvariant())"
+          "IMAGE_NAME=$imageName" >> $env:GITHUB_ENV
+          "WINDOWS_TEMP_TAG=$imageName:ci-$($env:GITHUB_SHA)-${{ matrix.artifact }}" >> $env:GITHUB_ENV
+
+      - name: Build Windows binary for image
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force .docker-windows | Out-Null
+          $env:CGO_ENABLED = "0"
+          $env:GOOS = "windows"
+          $env:GOARCH = "${{ matrix.goarch }}"
+          go build -trimpath -ldflags="-s -w -buildid=" -o .docker-windows\mb.exe .
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Windows image
+        shell: pwsh
+        run: |
+          docker version
+          docker build --pull --build-arg WINDOWS_BASE=${{ matrix.base }} -f Dockerfile.windows -t $env:WINDOWS_TEMP_TAG .
+          docker push $env:WINDOWS_TEMP_TAG
+
+      - name: Export digest
+        shell: pwsh
+        run: |
+          $digestRef = docker image inspect --format='{{index .RepoDigests 0}}' $env:WINDOWS_TEMP_TAG
+          if (-not $digestRef -or -not ($digestRef -match "@sha256:")) {
+            throw "Could not resolve pushed image digest for $env:WINDOWS_TEMP_TAG"
+          }
+          $digest = ($digestRef -split "@sha256:")[1]
+          $digestDir = Join-Path $env:RUNNER_TEMP "digests"
+          New-Item -ItemType Directory -Force $digestDir | Out-Null
+          New-Item -ItemType File -Force -Path (Join-Path $digestDir $digest) | Out-Null
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.artifact }}
+          path: ${{ runner.temp }}\digests\*
+          if-no-files-found: error
+          retention-days: 1
+
   docker-manifest:
     name: Publish multi-arch manifest
-    needs: docker-image
+    needs:
+      - docker-image
+      - windows-container-image
     runs-on: ubuntu-24.04
     steps:
       - name: Set lowercase image name

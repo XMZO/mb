@@ -1,6 +1,6 @@
 services:
   mb:
-    image: ${MB_IMAGE:-ghcr.io/your-github-owner/mb:latest}
+    image: ${MB_IMAGE:-ghcr.io/xmzo/mb:latest}
     container_name: ${MB_CONTAINER_NAME:-mb}
     restart: unless-stopped
     env_file:

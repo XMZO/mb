@@ -1,0 +1,17 @@
+services:
+  mb:
+    image: ${MB_IMAGE:-ghcr.io/xmzo/mb:latest}
+    container_name: ${MB_CONTAINER_NAME:-mb}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MB_ADDR: ":15000"
+      MB_DB: "C:/data/mb.db"
+    ports:
+      - "${MB_HTTP_PORT:-15000}:15000"
+    volumes:
+      - ${MB_DATA_VOLUME:-mb-data}:C:/data
+
+volumes:
+  mb-data:

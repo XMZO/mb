@@ -87,7 +87,7 @@ go build -o mb.exe .
 
 ### 4. Docker Compose 部署 / Deploy with Docker Compose
 
-tag workflow 会把镜像推到 GHCR。推一个 `v*` tag 即可触发测试、原生 Linux amd64/arm64 镜像构建和 manifest 发布:
+tag workflow 会把镜像推到 GHCR。推一个 `v*` tag 即可触发测试、原生 Linux amd64/arm64 镜像构建、Windows 容器镜像构建和 manifest 发布:
 
 ```bash
 git tag v1.0.0
@@ -124,6 +124,17 @@ sudo chown -R 10001:10001 data
 ```
 
 The compose file uses the published GHCR image and persists SQLite at `/data/mb.db`. By default it uses a named Docker volume; set `MB_DATA_VOLUME=./data` if you prefer a host bind mount.
+
+Windows 容器模式可使用同一个 GHCR tag,但要用 Windows compose 文件,因为数据库路径和 healthcheck 与 Linux 容器不同:
+
+```powershell
+Copy-Item .env.example .env
+# 编辑 .env: 把 MB_IMAGE 改成 ghcr.io/<owner>/<repo>:latest 或指定 tag
+docker compose -f docker-compose.windows.yml pull
+docker compose -f docker-compose.windows.yml up -d
+```
+
+CI 会发布 Linux `amd64` / `arm64` 镜像,并尝试发布 Windows `amd64` / `arm64` 容器镜像。Windows `arm64` runner 仍是 GitHub public preview,所以该平台在 workflow 中设为 optional;如果 GitHub 当次没有可用原生 runner 或 Windows ARM 容器基底不可用,不会阻断 Linux/VPS 镜像发布。Windows `amd64` 不是 optional。
 
 ---
 
@@ -183,6 +194,10 @@ Configuration is read from environment variables. The app automatically loads `.
 ├── main.go                         # thin entrypoint / 极薄启动入口
 ├── go.mod
 ├── go.sum
+├── Dockerfile                      # Linux container image
+├── Dockerfile.windows              # Windows container image
+├── docker-compose.yml              # Linux/VPS compose
+├── docker-compose.windows.yml      # Windows container compose
 ├── .env.example                    # config template / 配置模板
 ├── internal/mb/
 │   ├── run.go                      # app bootstrap / 应用启动流程
