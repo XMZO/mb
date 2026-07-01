@@ -1,0 +1,48 @@
+# Go build outputs
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Project binaries
+/mb
+/mb.exe
+
+# Runtime data
+*.db
+*.db-*
+mb.db
+mb.db-*
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Backups / temporary files
+*.bak
+*.tmp
+*.log
+_tmp*.db*
+__scan*.ps1
+
+# Go workspace
+/go.work
+/go.work.sum
+
+# Dependency directories (uncomment if vendoring)
+# vendor/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Claude / local tooling
+.alma-snapshots/
+/.alma-snapshots/
+.claude/

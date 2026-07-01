@@ -1,0 +1,253 @@
+{{define "layout"}}
+<!doctype html>
+<html lang="zh-CN" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MB 资产面板</title>
+  {{if .FaviconURL}}<link rel="icon" href="{{.FaviconURL}}">{{end}}
+  <link href="https://testingcf.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <style>
+    :root {
+      --panel: rgba(255,255,255,0.06);
+      --panel-border: rgba(255,255,255,0.10);
+      --muted-2: rgba(255,255,255,0.70);
+      --muted-3: rgba(255,255,255,0.58);
+    }
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(1100px circle at 18% -10%, rgba(13,110,253,0.35), transparent 60%),
+        radial-gradient(900px circle at 82% 10%, rgba(32,201,151,0.22), transparent 55%),
+        radial-gradient(1000px circle at 50% 120%, rgba(220,53,69,0.14), transparent 60%),
+        #0b1220;
+    }
+    .navbar {
+      background: rgba(11,18,32,0.62);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .bg-panel {
+      background: var(--panel);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--panel-border);
+      box-shadow: 0 18px 50px rgba(0,0,0,0.40);
+      transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+    }
+    .bg-panel:hover { transform: translateY(-1px); border-color: rgba(255,255,255,0.18); box-shadow: 0 22px 60px rgba(0,0,0,0.50); }
+    .text-muted-2 { color: var(--muted-2) !important; }
+    .text-muted-3 { color: var(--muted-3) !important; }
+    .table thead th { color: rgba(255,255,255,0.78); }
+    .table td, .table th { vertical-align: middle; }
+    .table thead th { position: sticky; top: 0; z-index: 1; background: rgba(11,18,32,0.95); }
+    .table-hover tbody tr { transition: background-color .12s ease; }
+    .badge { font-weight: 650; letter-spacing: .2px; }
+    .btn-outline-light { border-color: rgba(255,255,255,0.25); }
+    a { text-decoration: none; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .clickable { cursor: pointer; }
+    .batch-check { cursor: pointer; }
+    .grid-card .batch-check { transform: scale(0.9); }
+    .sortable-row,
+    .sortable-card { cursor: grab; }
+    .sortable-row:active,
+    .sortable-card:active { cursor: grabbing; }
+    .pinned-row > td {
+      background: linear-gradient(90deg, rgba(255,193,7,0.28), rgba(255,193,7,0.08) 40%, rgba(255,193,7,0.02));
+    }
+    .pinned-row > td:first-child {
+      box-shadow: inset 4px 0 0 rgba(255,193,7,0.95);
+    }
+    .table-hover tbody tr.pinned-row:hover > td {
+      background: linear-gradient(90deg, rgba(255,193,7,0.35), rgba(255,193,7,0.12) 40%, rgba(255,193,7,0.03));
+    }
+    .pinned-card {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, rgba(255,193,7,0.22), rgba(255,193,7,0.04));
+      border-color: rgba(255,193,7,0.85);
+      box-shadow: 0 0 0 1px rgba(255,193,7,0.55) inset, 0 10px 26px rgba(255,193,7,0.15);
+    }
+    .pinned-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 4px;
+      background: linear-gradient(180deg, rgba(255,193,7,0.95), rgba(255,193,7,0.45));
+      border-radius: 12px 0 0 12px;
+      pointer-events: none;
+    }
+    .pinned-badge {
+      background: #ffc107;
+      color: #161616;
+      border: 1px solid rgba(255,227,120,0.95);
+      box-shadow: 0 0 10px rgba(255,193,7,0.45);
+      font-weight: 700;
+    }
+    .grid-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+    .grid-card { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 14px; padding: 12px; }
+    .grid-card .badge { font-size: .7rem; }
+    .vps-grid { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+    .vps-card { border-radius: 12px; padding: 10px; font-size: .92rem; line-height: 1.2; }
+    .vps-card .badge { font-size: .66rem; padding: .22rem .45rem; }
+    .vps-card .btn { padding: .2rem .45rem; font-size: .78rem; }
+    .vps-card .mono.small { font-size: .75rem; }
+    .vps-card .text-muted-2.small,
+    .vps-card .text-muted-3.small { font-size: .72rem; }
+    .view-grid .table-view { display: none; }
+    .view-grid .grid-view { display: block; }
+    .view-table .table-view { display: block; }
+    .view-table .grid-view { display: none; }
+    body.compact .table td,
+    body.compact .table th { padding-top: .35rem; padding-bottom: .35rem; font-size: .875rem; }
+    body.compact .badge { font-size: .7rem; }
+    body.compact .grid-card { padding: 8px; }
+    @media (max-width: 768px) {
+      .table-view { display: none !important; }
+      .grid-view { display: block !important; }
+      .toolbar-row { flex-direction: column; align-items: stretch; }
+      .toolbar-row .form-control { max-width: none !important; width: 100%; }
+      .grid-list { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+      .vps-grid { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .bg-panel, .table-hover tbody tr { transition: none !important; }
+      .badge-pulse { animation: none !important; }
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(220,53,69,0.38); }
+      70% { box-shadow: 0 0 0 10px rgba(220,53,69,0.00); }
+      100% { box-shadow: 0 0 0 0 rgba(220,53,69,0.00); }
+    }
+    .badge-pulse { animation: pulse 1.6s ease-out infinite; }
+  </style>
+</head>
+<body class="text-light">
+  <nav class="navbar navbar-expand-lg navbar-dark">
+    <div class="container py-2">
+      <a class="navbar-brand fw-semibold" href="/">MB 资产面板</a>
+      <div class="ms-auto d-flex align-items-center gap-2">
+        {{if .PublicMode}}
+          <span class="badge text-bg-info text-dark">公开只读</span>
+        {{else}}
+          <span class="badge text-bg-secondary">私有</span>
+        {{end}}
+        {{if .IsAdmin}}
+          <a class="btn btn-sm btn-outline-light" href="/admin/settings">设置</a>
+          <form method="post" action="/logout" class="d-inline">
+            <button class="btn btn-sm btn-light">退出</button>
+          </form>
+        {{else}}
+          <a class="btn btn-sm btn-light" href="/login">登录</a>
+        {{end}}
+      </div>
+    </div>
+  </nav>
+
+  <main class="container pb-5 pt-3">
+    {{template "content" .}}
+  </main>
+
+  <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="mbToast" class="toast align-items-center text-bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div id="mbToastBody" class="toast-body">已复制</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://testingcf.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <script>
+    (function () {
+      const toastEl = document.getElementById('mbToast');
+      const toastBody = document.getElementById('mbToastBody');
+      const hasBootstrap = typeof window.bootstrap !== 'undefined';
+      const toast = (toastEl && hasBootstrap && bootstrap.Toast) ? new bootstrap.Toast(toastEl, { delay: 1400 }) : null;
+
+      function showToast(message) {
+        if (!toast || !toastBody) return;
+        toastBody.textContent = message || '完成';
+        toast.show();
+      }
+
+      document.addEventListener('click', async function (e) {
+        const target = e.target.closest('[data-copy]');
+        if (!target) return;
+        const value = target.getAttribute('data-copy');
+        if (!value) return;
+        try {
+          await navigator.clipboard.writeText(value);
+          showToast('已复制：' + value);
+        } catch (_) {
+          showToast('复制失败');
+        }
+      });
+
+      if (!hasBootstrap) {
+        const toggles = document.querySelectorAll('.dropdown-toggle');
+        const closeAll = () => {
+          document.querySelectorAll('.dropdown.show').forEach((el) => {
+            el.classList.remove('show');
+            const menu = el.querySelector('.dropdown-menu');
+            const toggle = el.querySelector('.dropdown-toggle');
+            if (menu) menu.classList.remove('show');
+            if (toggle) toggle.setAttribute('aria-expanded', 'false');
+          });
+        };
+        toggles.forEach((toggle) => {
+          toggle.addEventListener('click', function (e) {
+            const parent = toggle.closest('.dropdown');
+            const menu = parent ? parent.querySelector('.dropdown-menu') : null;
+            if (!parent || !menu) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const shouldOpen = !parent.classList.contains('show');
+            closeAll();
+            if (shouldOpen) {
+              parent.classList.add('show');
+              menu.classList.add('show');
+              toggle.setAttribute('aria-expanded', 'true');
+            }
+          });
+        });
+        document.addEventListener('click', closeAll);
+      }
+
+      const baseSelect = document.getElementById('baseCurrency');
+      if (baseSelect) {
+        const safeGet = (key) => {
+          try { return localStorage.getItem(key) || ''; } catch (_) { return ''; }
+        };
+        const safeSet = (key, value) => {
+          try { localStorage.setItem(key, value); } catch (_) {}
+        };
+        try {
+          const url = new URL(window.location.href);
+          const current = (url.searchParams.get('base') || '').toUpperCase();
+          const stored = safeGet('mb_base_currency').toUpperCase();
+          if (current) {
+            safeSet('mb_base_currency', current);
+          } else if (stored && stored !== baseSelect.value) {
+            url.searchParams.set('base', stored);
+            window.location.replace(url.toString());
+            return;
+          }
+        } catch (_) {
+        }
+        baseSelect.addEventListener('change', function () {
+          const base = (this.value || '').toUpperCase();
+          safeSet('mb_base_currency', base);
+          const next = new URL(window.location.href);
+          next.searchParams.set('base', base);
+          window.location.href = next.toString();
+        });
+      }
+      window.mbToast = showToast;
+    })();
+  </script>
+</body>
+</html>
+{{end}}
