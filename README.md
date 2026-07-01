@@ -140,6 +140,8 @@ sudo chown -R 10001:10001 data
 
 The compose file uses the published GHCR image and persists SQLite at `./data/mb.db` by bind-mounting the local `./data` directory to `/data` inside the container.
 
+Linux 镜像使用 `scratch` 最小运行时,并用 `-trimpath -ldflags="-s -w -buildid="` 压缩 Go 构建产物。容器内没有 shell / wget / apk;健康检查由内置的 `mb healthcheck` 子命令完成。排查容器时请优先看 `docker compose logs mb`,不要依赖 `docker compose exec mb sh`。
+
 Windows 容器模式可使用同一个 GHCR tag,但要用 Windows compose 文件,因为数据库路径和 healthcheck 与 Linux 容器不同:
 
 ```powershell
