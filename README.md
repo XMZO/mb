@@ -125,10 +125,10 @@ ports:
 
 要换宿主机端口,改左边即可,例如 `"8080:15000"`。`.env` 里的 `MB_ADDR` 是给直接运行二进制 / systemd 用的,Docker Compose 默认不需要设置它。
 
-`docker-compose.yml` 默认使用 Docker named volume `mb-data` 持久化 `/data/mb.db`。如果想把数据库放在仓库目录旁边,可在 `.env` 里改成:
+`docker-compose.yml` 默认把同目录的 `./data` 挂载到容器内 `/data`,数据库文件就是 `./data/mb.db`:
 
-```env
-MB_DATA_VOLUME=./data
+```text
+./data/mb.db
 ```
 
 绑定宿主机目录时,容器内默认 UID/GID 是 `10001:10001`;如果遇到数据库无法写入:
@@ -138,7 +138,7 @@ mkdir -p data
 sudo chown -R 10001:10001 data
 ```
 
-The compose file uses the published GHCR image and persists SQLite at `/data/mb.db`. By default it uses a named Docker volume; set `MB_DATA_VOLUME=./data` if you prefer a host bind mount.
+The compose file uses the published GHCR image and persists SQLite at `./data/mb.db` by bind-mounting the local `./data` directory to `/data` inside the container.
 
 Windows 容器模式可使用同一个 GHCR tag,但要用 Windows compose 文件,因为数据库路径和 healthcheck 与 Linux 容器不同:
 

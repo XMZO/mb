@@ -10,7 +10,4 @@ services:
     environment:
       MB_DB: "C:/data/mb.db"
     volumes:
-      - ${MB_DATA_VOLUME:-mb-data}:C:/data
-
-volumes:
-  mb-data:
+      - "./data:C:/data"
