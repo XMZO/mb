@@ -162,6 +162,11 @@ func TestManualFxEditorKeepsTheSettingsPageCompact(t *testing.T) {
 	if !strings.Contains(body, `name="fx_rate_currency"`) || !strings.Contains(body, `value="MVR"`) {
 		t.Fatalf("additional currency selector is missing")
 	}
+	for _, hook := range []string{`class="page-enter settings-page"`, `class="col-12 col-sm-6 col-xl-3"`} {
+		if !strings.Contains(body, hook) {
+			t.Fatalf("settings mobile layout hook missing: %s", hook)
+		}
+	}
 }
 
 func TestSettingsCanSaveAnAdditionalManualFxRate(t *testing.T) {
@@ -422,6 +427,11 @@ func TestDashboardAdminFormsRenderCSRFInsideRows(t *testing.T) {
 	}
 	if !strings.Contains(buf.String(), `value="csrf-test"`) {
 		t.Fatalf("dashboard admin forms missing csrf token")
+	}
+	for _, hook := range []string{`class="fx-rates text-muted-2 small"`, `class="list-surface rounded-4`, `class="grid-card-head`, `class="card-actions`} {
+		if !strings.Contains(buf.String(), hook) {
+			t.Fatalf("dashboard mobile layout hook missing: %s", hook)
+		}
 	}
 }
 

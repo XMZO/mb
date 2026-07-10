@@ -29,14 +29,14 @@
   </div>
 
   <div class="fxbar mb-3">
-    <div class="text-muted-2 small">
-      <span class="mono">1 EUR = {{fxRate .Fx "USD"}} USD</span> ·
-      <span class="mono">{{fxRate .Fx "CNY"}} CNY</span> ·
-      <span class="mono">{{fxRate .Fx "TRY"}} TRY</span> ·
-      <span class="mono">{{fxRate .Fx "TND"}} TND</span> ·
+    <div class="fx-rates text-muted-2 small">
+      <span class="mono">1 EUR = {{fxRate .Fx "USD"}} USD</span>
+      <span class="mono">{{fxRate .Fx "CNY"}} CNY</span>
+      <span class="mono">{{fxRate .Fx "TRY"}} TRY</span>
+      <span class="mono">{{fxRate .Fx "TND"}} TND</span>
       <span class="mono">1 USD ≈ {{usdToCny .Fx}} CNY</span>
-      <span class="text-muted-3">· 来源 {{.Fx.Source}}{{if .Fx.RateDate}} · {{.Fx.RateDate}}{{end}}</span>
-      {{if .Fx.LastError}}<span class="text-muted-3"> · 最近错误：{{.Fx.LastError}}</span>{{end}}
+      <span class="text-muted-3">来源 {{.Fx.Source}}{{if .Fx.RateDate}} · {{.Fx.RateDate}}{{end}}</span>
+      {{if .Fx.LastError}}<span class="text-muted-3">最近错误：{{.Fx.LastError}}</span>{{end}}
     </div>
     <div class="fx-base">
       <label class="text-muted-3 small mb-0" for="baseCurrency">统计币种</label>
@@ -57,7 +57,7 @@
   <div class="section-head">
     <div class="section-title">
       <h5 class="mb-0">米表（域名）</h5>
-      {{if .IsAdmin}}<span class="text-muted-3 small">拖动行排序</span>{{end}}
+      {{if .IsAdmin}}<span class="sort-hint text-muted-3 small">拖动行排序</span>{{end}}
     </div>
     {{if .IsAdmin}}
       <div class="section-actions">
@@ -149,7 +149,7 @@
       <button type="button" id="domainPageNext" class="btn btn-sm btn-outline-light">下一页</button>
     </div>
   </div>
-  <div class="rounded-4 bg-panel p-2 mb-4">
+  <div class="list-surface rounded-4 bg-panel p-2 mb-4">
     <div class="table-responsive">
       <div class="table-view">
         <table class="table table-dark table-hover align-middle mb-0">
@@ -261,12 +261,12 @@
               {{if and (not $.IsAdmin) .Hidden}}
                 <div class="text-muted-2 small">已隐藏</div>
               {{else}}
-                <div class="d-flex align-items-center justify-content-between">
+                <div class="grid-card-head d-flex align-items-center justify-content-between">
                   <a class="fw-semibold mono link-light" href="{{domainURL .Domain}}" target="_blank" rel="noopener">{{.Domain}}</a>
                   <div class="d-flex align-items-center gap-2">
                     {{if .Pinned}}<span class="badge pinned-badge">置顶</span>{{end}}
                     {{if .Hidden}}<span class="badge text-bg-secondary">隐藏</span>{{end}}
-                    <span class="text-muted-3 small clickable" data-copy="{{.Domain}}">复制</span>
+                    <span class="copy-action text-muted-3 small clickable" data-copy="{{.Domain}}">复制</span>
                     {{if $.IsAdmin}}<input class="form-check-input batch-check" type="checkbox" data-id="{{.ID}}">{{end}}
                   </div>
                 </div>
@@ -306,7 +306,7 @@
                   {{if .Notes}}<div class="text-muted-2 small">{{.Notes}}</div>{{end}}
                 {{end}}
                 {{if $.IsAdmin}}
-                  <div class="d-flex flex-wrap gap-2 mt-1">
+                  <div class="card-actions d-flex flex-wrap gap-2 mt-1">
                     <form method="post" action="/domain/pin?id={{.ID}}" class="d-inline">
                       {{template "csrf" $}}
                       <input type="hidden" name="pinned" value="{{if .Pinned}}0{{else}}1{{end}}">
@@ -334,7 +334,7 @@
   <div class="section-head">
     <div class="section-title">
       <h5 class="mb-0">VPS（服务器）</h5>
-      {{if .IsAdmin}}<span class="text-muted-3 small">拖动行排序</span>{{end}}
+      {{if .IsAdmin}}<span class="sort-hint text-muted-3 small">拖动行排序</span>{{end}}
     </div>
     {{if .IsAdmin}}
       <div class="section-actions">
@@ -412,7 +412,7 @@
       <button type="button" id="vpsPageNext" class="btn btn-sm btn-outline-light">下一页</button>
     </div>
   </div>
-  <div class="rounded-4 bg-panel p-2">
+  <div class="list-surface rounded-4 bg-panel p-2">
     <div class="table-responsive">
       <div class="table-view">
         <table class="table table-dark table-hover align-middle mb-0">
@@ -551,7 +551,7 @@
               {{if and (not $.IsAdmin) .Hidden}}
                 <div class="text-muted-2 small">已隐藏</div>
               {{else}}
-                <div class="d-flex align-items-center justify-content-between">
+                <div class="grid-card-head d-flex align-items-center justify-content-between">
                   <div class="fw-semibold d-flex align-items-center gap-2">
                     <span>{{.Vendor}}</span>
                     {{if .Pinned}}<span class="badge pinned-badge">置顶</span>{{end}}
@@ -617,7 +617,7 @@
                   {{if .Notes}}<div class="text-muted-2 small">{{.Notes}}</div>{{end}}
                 {{end}}
                 {{if $.IsAdmin}}
-                  <div class="d-flex flex-wrap gap-2 mt-1">
+                  <div class="card-actions d-flex flex-wrap gap-2 mt-1">
                     <form method="post" action="/vps/pin?id={{.ID}}" class="d-inline">
                       {{template "csrf" $}}
                       <input type="hidden" name="pinned" value="{{if .Pinned}}0{{else}}1{{end}}">

@@ -1,6 +1,6 @@
 {{define "settings"}}{{template "layout" .}}{{end}}
 {{define "content"}}
-  <div class="page-enter">
+  <div class="page-enter settings-page">
     <div class="page-hero">
       <div>
         <div class="page-kicker">Admin console</div>
@@ -50,7 +50,7 @@
 
             <div class="section-eyebrow">域名字段</div>
             <div class="row g-2">
-              <div class="col-6 col-xl-3">
+              <div class="col-12 col-sm-6 col-xl-3">
                 <div class="switch-card">
                   <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" role="switch" id="public_show_domain_registrar" name="public_show_domain_registrar" value="1" {{if .PublicShowDomainRegistrar}}checked{{end}}>
@@ -58,7 +58,7 @@
                   </div>
                 </div>
               </div>
-              <div class="col-6 col-xl-3">
+              <div class="col-12 col-sm-6 col-xl-3">
                 <div class="switch-card">
                   <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" role="switch" id="public_show_domain_expiry" name="public_show_domain_expiry" value="1" {{if .PublicShowDomainExpiry}}checked{{end}}>
@@ -66,7 +66,7 @@
                   </div>
                 </div>
               </div>
-              <div class="col-6 col-xl-3">
+              <div class="col-12 col-sm-6 col-xl-3">
                 <div class="switch-card">
                   <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" role="switch" id="public_show_domain_price" name="public_show_domain_price" value="1" {{if .PublicShowDomainPrice}}checked{{end}}>
@@ -74,7 +74,7 @@
                   </div>
                 </div>
               </div>
-              <div class="col-6 col-xl-3">
+              <div class="col-12 col-sm-6 col-xl-3">
                 <div class="switch-card">
                   <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" role="switch" id="public_show_domain_notes" name="public_show_domain_notes" value="1" {{if .PublicShowDomainNotes}}checked{{end}}>
@@ -86,7 +86,7 @@
 
             <div class="section-eyebrow">VPS 字段</div>
             <div class="row g-2">
-              <div class="col-6 col-xl-4">
+              <div class="col-12 col-sm-6 col-xl-4">
                 <div class="switch-card">
                   <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" role="switch" id="public_show_vps_ip" name="public_show_vps_ip" value="1" {{if .PublicShowVPSIP}}checked{{end}}>
@@ -94,7 +94,7 @@
                   </div>
                 </div>
               </div>
-              <div class="col-6 col-xl-4">
+              <div class="col-12 col-sm-6 col-xl-4">
                 <div class="switch-card">
                   <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" role="switch" id="public_show_vps_region" name="public_show_vps_region" value="1" {{if .PublicShowVPSRegion}}checked{{end}}>
@@ -102,7 +102,7 @@
                   </div>
                 </div>
               </div>
-              <div class="col-6 col-xl-4">
+              <div class="col-12 col-sm-6 col-xl-4">
                 <div class="switch-card">
                   <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" role="switch" id="public_show_vps_specs" name="public_show_vps_specs" value="1" {{if .PublicShowVPSSpecs}}checked{{end}}>
@@ -110,7 +110,7 @@
                   </div>
                 </div>
               </div>
-              <div class="col-6 col-xl-4">
+              <div class="col-12 col-sm-6 col-xl-4">
                 <div class="switch-card">
                   <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" role="switch" id="public_show_vps_expiry" name="public_show_vps_expiry" value="1" {{if .PublicShowVPSExpiry}}checked{{end}}>
@@ -118,7 +118,7 @@
                   </div>
                 </div>
               </div>
-              <div class="col-6 col-xl-4">
+              <div class="col-12 col-sm-6 col-xl-4">
                 <div class="switch-card">
                   <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" role="switch" id="public_show_vps_price" name="public_show_vps_price" value="1" {{if .PublicShowVPSPrice}}checked{{end}}>
@@ -126,7 +126,7 @@
                   </div>
                 </div>
               </div>
-              <div class="col-6 col-xl-4">
+              <div class="col-12 col-sm-6 col-xl-4">
                 <div class="switch-card">
                   <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" role="switch" id="public_show_vps_notes" name="public_show_vps_notes" value="1" {{if .PublicShowVPSNotes}}checked{{end}}>
@@ -165,7 +165,7 @@
 
             <div class="row g-2">
               {{range featuredManualFxCurrencies}}
-                <div class="col-6 col-md-4 col-xl-3">
+                <div class="col-12 col-sm-6 col-md-4 col-xl-3">
                   <div class="field-card">
                     <label class="form-label">1 EUR = ? {{.Code}}</label>
                     <input class="form-control mono" name="fx_rate_{{.Code}}" placeholder='{{fxRate $.Fx .Code}}'>
