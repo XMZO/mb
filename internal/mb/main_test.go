@@ -133,6 +133,56 @@ func TestCurrencySupportIncludesTRYAndTND(t *testing.T) {
 	}
 }
 
+func TestManualFxEditorKeepsTheSettingsPageCompact(t *testing.T) {
+	featured := featuredManualFxCurrencies()
+	wantFeatured := []string{"CNY", "USD", "TRY", "TND"}
+	if len(featured) != len(wantFeatured) {
+		t.Fatalf("featured manual currencies: want %d, got %d", len(wantFeatured), len(featured))
+	}
+	for i, want := range wantFeatured {
+		if featured[i].Code != want {
+			t.Fatalf("featured manual currency %d: want %s, got %s", i, want, featured[i].Code)
+		}
+	}
+	if got, want := len(featured)+len(additionalManualFxCurrencies()), len(manualFxCurrencies()); got != want {
+		t.Fatalf("manual currency groups: want %d total, got %d", want, got)
+	}
+
+	a := newTestApp(t)
+	rr := httptest.NewRecorder()
+	a.render(rr, "settings", a.buildSettingsVM(false, "", ""))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("render settings: status %d", rr.Code)
+	}
+	body := rr.Body.String()
+	directInputs := regexp.MustCompile(`name="fx_rate_[A-Z]{3}"`).FindAllString(body, -1)
+	if len(directInputs) != len(wantFeatured) {
+		t.Fatalf("direct manual rate inputs: want %d, got %d", len(wantFeatured), len(directInputs))
+	}
+	if !strings.Contains(body, `name="fx_rate_currency"`) || !strings.Contains(body, `value="MVR"`) {
+		t.Fatalf("additional currency selector is missing")
+	}
+}
+
+func TestSettingsCanSaveAnAdditionalManualFxRate(t *testing.T) {
+	a := newTestApp(t)
+	values := url.Values{
+		"form":             {"access"},
+		"fx_rate_currency": {"MVR"},
+		"fx_rate_value":    {"17.75"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/admin/settings", strings.NewReader(values.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	a.handleSettings(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("save additional manual rate: status %d body=%s", rr.Code, rr.Body.String())
+	}
+	if got := a.getFxRates()["MVR"]; got != 17.75 {
+		t.Fatalf("saved MVR rate: want 17.75, got %v", got)
+	}
+}
+
 // TestEnsureAdminPassword 覆盖 P0-1 的密码双模式:环境变量为准 / 随机生成 / 保留既有。
 func TestEnsureAdminPassword(t *testing.T) {
 	a := newTestApp(t) // newTestApp 用 adminPassword="test-password" 播种

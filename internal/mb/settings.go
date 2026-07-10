@@ -184,6 +184,21 @@ func (a *app) handleSettingsAccess(w http.ResponseWriter, r *http.Request) {
 			manualUpdated = true
 		}
 	}
+	extraCurrency := strings.ToUpper(strings.TrimSpace(r.FormValue("fx_rate_currency")))
+	extraRateRaw := strings.TrimSpace(r.FormValue("fx_rate_value"))
+	if extraRateRaw != "" {
+		if extraCurrency == "" || extraCurrency == "EUR" || !isSupportedCurrency(extraCurrency) {
+			renderAccessError("请选择有效的其他货币")
+			return
+		}
+		rate, _, err := parseManualRate(extraRateRaw)
+		if err != nil {
+			renderAccessError("手动汇率格式不正确（需要正数）")
+			return
+		}
+		rates[extraCurrency] = rate
+		manualUpdated = true
+	}
 	if manualUpdated {
 		if err := storeFxRates(a.db, rates, time.Now().In(time.Local).Format("2006-01-02"), fxSourceManual); err != nil {
 			a.serverError(w, err)

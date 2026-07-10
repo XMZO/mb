@@ -44,6 +44,12 @@ func mustTemplates() map[string]*template.Template {
 		"manualFxCurrencies": func() []currencyOption {
 			return manualFxCurrencies()
 		},
+		"featuredManualFxCurrencies": func() []currencyOption {
+			return featuredManualFxCurrencies()
+		},
+		"additionalManualFxCurrencies": func() []currencyOption {
+			return additionalManualFxCurrencies()
+		},
 		"daysLabel": func(days int) string {
 			if days < 0 {
 				return "已过期"

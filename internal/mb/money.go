@@ -150,6 +150,8 @@ var supportedCurrencies = []currencyOption{
 	{Code: "SBD", Name: "所罗门群岛元", Symbol: "SI$"},
 }
 
+var featuredManualFxCurrencyCodes = []string{"CNY", "USD", "TRY", "TND"}
+
 func currencyOptions() []currencyOption {
 	return supportedCurrencies
 }
@@ -162,6 +164,39 @@ func manualFxCurrencies() []currencyOption {
 		}
 	}
 	return out
+}
+
+func featuredManualFxCurrencies() []currencyOption {
+	out := make([]currencyOption, 0, len(featuredManualFxCurrencyCodes))
+	for _, code := range featuredManualFxCurrencyCodes {
+		for _, currency := range supportedCurrencies {
+			if currency.Code == code {
+				out = append(out, currency)
+				break
+			}
+		}
+	}
+	return out
+}
+
+func additionalManualFxCurrencies() []currencyOption {
+	out := make([]currencyOption, 0, len(supportedCurrencies)-len(featuredManualFxCurrencyCodes)-1)
+	for _, currency := range supportedCurrencies {
+		if currency.Code == "EUR" || isFeaturedManualFxCurrency(currency.Code) {
+			continue
+		}
+		out = append(out, currency)
+	}
+	return out
+}
+
+func isFeaturedManualFxCurrency(code string) bool {
+	for _, featuredCode := range featuredManualFxCurrencyCodes {
+		if code == featuredCode {
+			return true
+		}
+	}
+	return false
 }
 
 func supportedCurrencyCodes() []string {

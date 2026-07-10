@@ -164,7 +164,7 @@
             </div>
 
             <div class="row g-2">
-              {{range manualFxCurrencies}}
+              {{range featuredManualFxCurrencies}}
                 <div class="col-6 col-md-4 col-xl-3">
                   <div class="field-card">
                     <label class="form-label">1 EUR = ? {{.Code}}</label>
@@ -172,6 +172,28 @@
                   </div>
                 </div>
               {{end}}
+              <div class="col-12">
+                <div class="field-card">
+                  <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                    <label class="form-label mb-0" for="fx_rate_currency">其他货币手动汇率</label>
+                    <span class="pill-soft">按需编辑</span>
+                  </div>
+                  <div class="row g-2">
+                    <div class="col-12 col-md-7">
+                      <select class="form-select mono" id="fx_rate_currency" name="fx_rate_currency">
+                        <option value="">选择其他币种</option>
+                        {{range additionalManualFxCurrencies}}
+                          <option value="{{.Code}}">{{.Code}} · {{.Name}} · 当前 {{fxRate $.Fx .Code}}</option>
+                        {{end}}
+                      </select>
+                    </div>
+                    <div class="col-12 col-md-5">
+                      <input class="form-control mono" name="fx_rate_value" inputmode="decimal" placeholder="1 EUR 对应数值">
+                    </div>
+                  </div>
+                  <div class="field-help">完整币种仍然支持；选择一个币种并填写汇率即可覆盖，留空不会修改。</div>
+                </div>
+              </div>
               <div class="col-12">
                 <div class="field-card">
                   <label class="form-label">Favicon 链接（https）</label>
