@@ -15,20 +15,28 @@
     {{if .Error}}<div class="alert alert-danger">{{.Error}}</div>{{end}}
     {{if .Notice}}<div class="alert alert-success">{{.Notice}}</div>{{end}}
 
-    <div class="content-grid">
-      <div class="stack">
-        <section id="access" class="form-panel glass-panel">
-          <div class="panel-head">
-            <div>
-              <h2 class="panel-title">访问与公开展示</h2>
-              <div class="panel-subtitle">控制访客只读模式，以及公开状态下可见的统计与字段。</div>
-            </div>
-            <span class="pill-soft">{{if .PublicMode}}公开只读{{else}}私有模式{{end}}</span>
-          </div>
+    <div class="settings-workspace">
+      <nav class="settings-nav bg-panel" aria-label="设置分类" role="tablist">
+        <a class="is-active" href="#visibility" data-settings-tab="visibility" role="tab" aria-selected="true"><span class="settings-nav-label-long">展示权限</span><span class="settings-nav-label-short">展示</span><span class="nav-dot"></span></a>
+        <a href="#appearance" data-settings-tab="appearance" role="tab" aria-selected="false"><span class="settings-nav-label-long">汇率与外观</span><span class="settings-nav-label-short">汇率</span><span class="nav-dot"></span></a>
+        <a href="#security" data-settings-tab="security" role="tab" aria-selected="false"><span class="settings-nav-label-long">安全</span><span class="settings-nav-label-short">安全</span><span class="nav-dot"></span></a>
+        <a href="#email" data-settings-tab="email" role="tab" aria-selected="false"><span class="settings-nav-label-long">邮件提醒</span><span class="settings-nav-label-short">邮件</span><span class="nav-dot"></span></a>
+        <a href="#backup" data-settings-tab="backup" role="tab" aria-selected="false"><span class="settings-nav-label-long">备份恢复</span><span class="settings-nav-label-short">备份</span><span class="nav-dot"></span></a>
+      </nav>
 
-          <form method="post" action="/admin/settings">
-            {{template "csrf" .}}
-            <input type="hidden" name="form" value="access">
+      <div class="settings-panels">
+        <form class="settings-shared-form" method="post" action="/admin/settings">
+          {{template "csrf" .}}
+          <input type="hidden" name="form" value="access">
+
+          <section id="visibility" class="settings-panel form-panel glass-panel is-active" data-settings-panel="visibility" role="tabpanel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">访问与公开展示</h2>
+                <div class="panel-subtitle">控制访客只读模式，以及公开状态下可见的统计与字段。</div>
+              </div>
+              <span class="pill-soft">{{if .PublicMode}}公开只读{{else}}私有模式{{end}}</span>
+            </div>
 
             <div class="switch-card mb-3">
               <div class="form-check form-switch">
@@ -49,108 +57,41 @@
             </div>
 
             <div class="section-eyebrow">域名字段</div>
-            <div class="row g-2">
-              <div class="col-12 col-sm-6 col-xl-3">
-                <div class="switch-card">
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" role="switch" id="public_show_domain_registrar" name="public_show_domain_registrar" value="1" {{if .PublicShowDomainRegistrar}}checked{{end}}>
-                    <label class="form-check-label" for="public_show_domain_registrar">注册商</label>
-                  </div>
-                </div>
-              </div>
-              <div class="col-12 col-sm-6 col-xl-3">
-                <div class="switch-card">
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" role="switch" id="public_show_domain_expiry" name="public_show_domain_expiry" value="1" {{if .PublicShowDomainExpiry}}checked{{end}}>
-                    <label class="form-check-label" for="public_show_domain_expiry">到期时间</label>
-                  </div>
-                </div>
-              </div>
-              <div class="col-12 col-sm-6 col-xl-3">
-                <div class="switch-card">
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" role="switch" id="public_show_domain_price" name="public_show_domain_price" value="1" {{if .PublicShowDomainPrice}}checked{{end}}>
-                    <label class="form-check-label" for="public_show_domain_price">续费价格</label>
-                  </div>
-                </div>
-              </div>
-              <div class="col-12 col-sm-6 col-xl-3">
-                <div class="switch-card">
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" role="switch" id="public_show_domain_notes" name="public_show_domain_notes" value="1" {{if .PublicShowDomainNotes}}checked{{end}}>
-                    <label class="form-check-label" for="public_show_domain_notes">备注</label>
-                  </div>
-                </div>
-              </div>
+            <div class="settings-toggle-grid">
+              <div class="switch-card settings-toggle"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="public_show_domain_registrar" name="public_show_domain_registrar" value="1" {{if .PublicShowDomainRegistrar}}checked{{end}}><label class="form-check-label" for="public_show_domain_registrar">注册商</label></div></div>
+              <div class="switch-card settings-toggle"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="public_show_domain_expiry" name="public_show_domain_expiry" value="1" {{if .PublicShowDomainExpiry}}checked{{end}}><label class="form-check-label" for="public_show_domain_expiry">到期时间</label></div></div>
+              <div class="switch-card settings-toggle"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="public_show_domain_price" name="public_show_domain_price" value="1" {{if .PublicShowDomainPrice}}checked{{end}}><label class="form-check-label" for="public_show_domain_price">续费价格</label></div></div>
+              <div class="switch-card settings-toggle"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="public_show_domain_notes" name="public_show_domain_notes" value="1" {{if .PublicShowDomainNotes}}checked{{end}}><label class="form-check-label" for="public_show_domain_notes">备注</label></div></div>
             </div>
 
             <div class="section-eyebrow">VPS 字段</div>
-            <div class="row g-2">
-              <div class="col-12 col-sm-6 col-xl-4">
-                <div class="switch-card">
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" role="switch" id="public_show_vps_ip" name="public_show_vps_ip" value="1" {{if .PublicShowVPSIP}}checked{{end}}>
-                    <label class="form-check-label" for="public_show_vps_ip">IP</label>
-                  </div>
-                </div>
-              </div>
-              <div class="col-12 col-sm-6 col-xl-4">
-                <div class="switch-card">
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" role="switch" id="public_show_vps_region" name="public_show_vps_region" value="1" {{if .PublicShowVPSRegion}}checked{{end}}>
-                    <label class="form-check-label" for="public_show_vps_region">地区</label>
-                  </div>
-                </div>
-              </div>
-              <div class="col-12 col-sm-6 col-xl-4">
-                <div class="switch-card">
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" role="switch" id="public_show_vps_specs" name="public_show_vps_specs" value="1" {{if .PublicShowVPSSpecs}}checked{{end}}>
-                    <label class="form-check-label" for="public_show_vps_specs">配置与套餐</label>
-                  </div>
-                </div>
-              </div>
-              <div class="col-12 col-sm-6 col-xl-4">
-                <div class="switch-card">
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" role="switch" id="public_show_vps_expiry" name="public_show_vps_expiry" value="1" {{if .PublicShowVPSExpiry}}checked{{end}}>
-                    <label class="form-check-label" for="public_show_vps_expiry">到期时间</label>
-                  </div>
-                </div>
-              </div>
-              <div class="col-12 col-sm-6 col-xl-4">
-                <div class="switch-card">
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" role="switch" id="public_show_vps_price" name="public_show_vps_price" value="1" {{if .PublicShowVPSPrice}}checked{{end}}>
-                    <label class="form-check-label" for="public_show_vps_price">续费价格</label>
-                  </div>
-                </div>
-              </div>
-              <div class="col-12 col-sm-6 col-xl-4">
-                <div class="switch-card">
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" role="switch" id="public_show_vps_notes" name="public_show_vps_notes" value="1" {{if .PublicShowVPSNotes}}checked{{end}}>
-                    <label class="form-check-label" for="public_show_vps_notes">备注</label>
-                  </div>
-                </div>
-              </div>
+            <div class="settings-toggle-grid settings-toggle-grid-vps">
+              <div class="switch-card settings-toggle"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="public_show_vps_ip" name="public_show_vps_ip" value="1" {{if .PublicShowVPSIP}}checked{{end}}><label class="form-check-label" for="public_show_vps_ip">IP</label></div></div>
+              <div class="switch-card settings-toggle"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="public_show_vps_region" name="public_show_vps_region" value="1" {{if .PublicShowVPSRegion}}checked{{end}}><label class="form-check-label" for="public_show_vps_region">地区</label></div></div>
+              <div class="switch-card settings-toggle"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="public_show_vps_specs" name="public_show_vps_specs" value="1" {{if .PublicShowVPSSpecs}}checked{{end}}><label class="form-check-label" for="public_show_vps_specs">配置与套餐</label></div></div>
+              <div class="switch-card settings-toggle"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="public_show_vps_expiry" name="public_show_vps_expiry" value="1" {{if .PublicShowVPSExpiry}}checked{{end}}><label class="form-check-label" for="public_show_vps_expiry">到期时间</label></div></div>
+              <div class="switch-card settings-toggle"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="public_show_vps_price" name="public_show_vps_price" value="1" {{if .PublicShowVPSPrice}}checked{{end}}><label class="form-check-label" for="public_show_vps_price">续费价格</label></div></div>
+              <div class="switch-card settings-toggle"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="public_show_vps_notes" name="public_show_vps_notes" value="1" {{if .PublicShowVPSNotes}}checked{{end}}><label class="form-check-label" for="public_show_vps_notes">备注</label></div></div>
             </div>
 
-            <div class="inline-divider"></div>
-            <div class="panel-head mb-2">
+            <div class="form-actions">
+              <button class="btn btn-light">保存展示设置</button>
+            </div>
+          </section>
+
+          <section id="appearance" class="settings-panel form-panel glass-panel" data-settings-panel="appearance" role="tabpanel" hidden>
+            <div class="panel-head">
               <div>
-                <h3 class="panel-title">汇率与外观</h3>
-                <div class="panel-subtitle">用于统计币种折算与浏览器标签图标。</div>
+                <h2 class="panel-title">汇率与外观</h2>
+                <div class="panel-subtitle">管理自动汇率、手动覆盖与浏览器标签图标。</div>
               </div>
+              <span class="pill-soft">FX</span>
             </div>
 
             <div class="switch-card mb-3">
               <div class="form-check form-switch">
                 <input class="form-check-input" type="checkbox" role="switch" id="fx_auto_update" name="fx_auto_update" value="1" {{if .Fx.AutoUpdate}}checked{{end}}>
-                <label class="form-check-label" for="fx_auto_update">
-                  <span class="fw-semibold">自动更新汇率</span>
-                  <span class="d-block text-muted-3 small mt-1">访问时按需拉取，18 小时限流。</span>
-                </label>
+                <label class="form-check-label" for="fx_auto_update"><span class="fw-semibold">自动更新汇率</span><span class="d-block text-muted-3 small mt-1">访问时按需拉取，18 小时限流。</span></label>
               </div>
             </div>
 
@@ -163,70 +104,38 @@
               <div class="summary-value mono">1 USD ≈ {{usdToCny .Fx}} CNY</div>
             </div>
 
-            <div class="row g-2">
+            <div class="settings-rate-grid mb-2">
               {{range featuredManualFxCurrencies}}
-                <div class="col-12 col-sm-6 col-md-4 col-xl-3">
-                  <div class="field-card">
-                    <label class="form-label">1 EUR = ? {{.Code}}</label>
-                    <input class="form-control mono" name="fx_rate_{{.Code}}" placeholder='{{fxRate $.Fx .Code}}'>
-                  </div>
-                </div>
+                <div class="field-card"><label class="form-label">1 EUR = ? {{.Code}}</label><input class="form-control mono" name="fx_rate_{{.Code}}" placeholder='{{fxRate $.Fx .Code}}'></div>
               {{end}}
-              <div class="col-12">
-                <div class="field-card">
-                  <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
-                    <label class="form-label mb-0" for="fx_rate_currency">其他货币手动汇率</label>
-                    <span class="pill-soft">按需编辑</span>
-                  </div>
-                  <div class="row g-2">
-                    <div class="col-12 col-md-7">
-                      <select class="form-select mono" id="fx_rate_currency" name="fx_rate_currency">
-                        <option value="">选择其他币种</option>
-                        {{range additionalManualFxCurrencies}}
-                          <option value="{{.Code}}">{{.Code}} · {{.Name}} · 当前 {{fxRate $.Fx .Code}}</option>
-                        {{end}}
-                      </select>
-                    </div>
-                    <div class="col-12 col-md-5">
-                      <input class="form-control mono" name="fx_rate_value" inputmode="decimal" placeholder="1 EUR 对应数值">
-                    </div>
-                  </div>
-                  <div class="field-help">完整币种仍然支持；选择一个币种并填写汇率即可覆盖，留空不会修改。</div>
+            </div>
+
+            <div class="settings-field-stack">
+              <div class="field-card">
+                <div class="d-flex align-items-center justify-content-between gap-2 mb-2"><label class="form-label mb-0" for="fx_rate_currency">其他货币手动汇率</label><span class="pill-soft">按需编辑</span></div>
+                <div class="row g-2">
+                  <div class="col-12 col-md-7"><select class="form-select mono" id="fx_rate_currency" name="fx_rate_currency"><option value="">选择其他币种</option>{{range additionalManualFxCurrencies}}<option value="{{.Code}}">{{.Code}} · {{.Name}} · 当前 {{fxRate $.Fx .Code}}</option>{{end}}</select></div>
+                  <div class="col-12 col-md-5"><input class="form-control mono" name="fx_rate_value" inputmode="decimal" placeholder="1 EUR 对应数值"></div>
                 </div>
+                <div class="field-help">完整币种仍然支持；选择一个币种并填写汇率即可覆盖，留空不会修改。</div>
               </div>
-              <div class="col-12">
-                <div class="field-card">
-                  <label class="form-label">Favicon 链接（https）</label>
-                  <input class="form-control mono" name="favicon_url" value='{{.FaviconURL}}' placeholder="https://example.com/favicon.ico">
-                  <div class="field-help">留空表示不设置；推荐 32×32 或 48×48 的 .ico/.png。</div>
-                  {{if .FaviconURL}}
-                    <div class="text-muted-2 small mt-2 d-flex align-items-center gap-2 flex-wrap">
-                      <span>预览：</span>
-                      <img src="{{.FaviconURL}}" alt="favicon" width="18" height="18" class="favicon-preview">
-                      <span class="mono">{{.FaviconURL}}</span>
-                    </div>
-                  {{end}}
-                </div>
+
+              <div class="field-card">
+                <label class="form-label">Favicon 链接（https）</label>
+                <input class="form-control mono" name="favicon_url" value='{{.FaviconURL}}' placeholder="https://example.com/favicon.ico">
+                <div class="field-help">留空表示不设置；推荐 32×32 或 48×48 的 .ico/.png。</div>
+                {{if .FaviconURL}}<div class="text-muted-2 small mt-2 d-flex align-items-center gap-2 flex-wrap"><span>预览：</span><img src="{{.FaviconURL}}" alt="favicon" width="18" height="18" class="favicon-preview"><span class="mono">{{.FaviconURL}}</span></div>{{end}}
               </div>
             </div>
 
             <div class="form-actions">
-              <button class="btn btn-light">保存设置</button>
+              <button class="btn btn-light">保存汇率与外观</button>
               <button class="btn btn-outline-light" formaction="/admin/fx/update" formmethod="post">从 ECB 立即更新汇率</button>
             </div>
-          </form>
-        </section>
-      </div>
+          </section>
+        </form>
 
-      <div class="stack">
-        <nav class="settings-nav bg-panel" aria-label="设置导航">
-          <a href="#access"><span>访问与公开展示</span><span class="nav-dot"></span></a>
-          <a href="#security"><span>管理员密码</span><span class="nav-dot"></span></a>
-          <a href="#email"><span>邮件提醒</span><span class="nav-dot"></span></a>
-          <a href="#backup"><span>备份恢复</span><span class="nav-dot"></span></a>
-        </nav>
-
-        <section id="security" class="form-panel glass-panel">
+        <section id="security" class="settings-panel form-panel glass-panel" data-settings-panel="security" role="tabpanel" hidden>
           <div class="panel-head">
             <div>
               <h2 class="panel-title">安全</h2>
@@ -264,7 +173,7 @@
           </form>
         </section>
 
-        <section id="email" class="form-panel glass-panel">
+        <section id="email" class="settings-panel form-panel glass-panel" data-settings-panel="email" role="tabpanel" hidden>
           <div class="panel-head">
             <div>
               <h2 class="panel-title">到期提醒（邮件）</h2>
@@ -366,7 +275,7 @@
           </form>
         </section>
 
-        <section id="backup" class="form-panel glass-panel">
+        <section id="backup" class="settings-panel form-panel glass-panel" data-settings-panel="backup" role="tabpanel" hidden>
           <div class="panel-head">
             <div>
               <h2 class="panel-title">数据备份 / 恢复</h2>
@@ -435,5 +344,72 @@
         </section>
       </div>
     </div>
+
+    <script nonce="{{.CSPNonce}}">
+      (function () {
+        const page = document.querySelector('.settings-page');
+        if (!page) return;
+        const workspace = page.querySelector('.settings-workspace');
+        const tabs = Array.from(page.querySelectorAll('[data-settings-tab]'));
+        const panels = Array.from(page.querySelectorAll('[data-settings-panel]'));
+        const names = new Set(panels.map((panel) => panel.getAttribute('data-settings-panel')));
+        const storageKey = 'mb_settings_panel';
+        const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        function savedPanel() {
+          try { return localStorage.getItem(storageKey) || ''; } catch (_) { return ''; }
+        }
+        function rememberPanel(name) {
+          try { localStorage.setItem(storageKey, name); } catch (_) {}
+        }
+        function activate(name, options) {
+          const next = names.has(name) ? name : 'visibility';
+          tabs.forEach((tab) => {
+            const active = tab.getAttribute('data-settings-tab') === next;
+            tab.classList.toggle('is-active', active);
+            tab.setAttribute('aria-selected', active ? 'true' : 'false');
+            if (active && options && options.focusTab) {
+              tab.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
+            }
+          });
+          panels.forEach((panel) => {
+            const active = panel.getAttribute('data-settings-panel') === next;
+            panel.hidden = !active;
+            panel.classList.toggle('is-active', active);
+          });
+          rememberPanel(next);
+          if (options && options.updateHash) {
+            history.replaceState(null, '', '#' + next);
+          }
+          if (options && options.scrollTop && workspace) {
+            workspace.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' });
+          }
+        }
+
+        tabs.forEach((tab) => {
+          tab.addEventListener('click', function (event) {
+            event.preventDefault();
+            activate(tab.getAttribute('data-settings-tab') || 'visibility', { updateHash: true, scrollTop: true, focusTab: true });
+          });
+        });
+        page.querySelectorAll('form').forEach((form) => {
+          form.addEventListener('submit', function () {
+            const active = tabs.find((tab) => tab.classList.contains('is-active'));
+            if (active) rememberPanel(active.getAttribute('data-settings-tab') || 'visibility');
+          });
+        });
+        window.addEventListener('hashchange', function () {
+          activate(location.hash.slice(1), { focusTab: true, scrollTop: true });
+        });
+
+        const hashPanel = location.hash.slice(1);
+        activate(names.has(hashPanel) ? hashPanel : savedPanel(), { focusTab: true });
+        if (names.has(hashPanel) && workspace) {
+          window.addEventListener('load', function () {
+            workspace.scrollIntoView({ block: 'start', behavior: 'auto' });
+          }, { once: true });
+        }
+      })();
+    </script>
   </div>
 {{end}}

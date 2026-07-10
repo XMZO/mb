@@ -162,10 +162,13 @@ func TestManualFxEditorKeepsTheSettingsPageCompact(t *testing.T) {
 	if !strings.Contains(body, `name="fx_rate_currency"`) || !strings.Contains(body, `value="MVR"`) {
 		t.Fatalf("additional currency selector is missing")
 	}
-	for _, hook := range []string{`class="page-enter settings-page"`, `class="col-12 col-sm-6 col-xl-3"`} {
+	for _, hook := range []string{`class="page-enter settings-page"`, `class="settings-workspace"`, `class="settings-toggle-grid"`, `data-settings-tab="appearance"`, `data-settings-panel="backup"`} {
 		if !strings.Contains(body, hook) {
-			t.Fatalf("settings mobile layout hook missing: %s", hook)
+			t.Fatalf("settings workspace hook missing: %s", hook)
 		}
+	}
+	if got := strings.Count(body, `data-settings-panel=`); got != 5 {
+		t.Fatalf("settings panels: want 5, got %d", got)
 	}
 }
 
