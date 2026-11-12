@@ -818,10 +818,11 @@ a.stat:hover .stat-value {
 }
 
 /*
- * 小块网格。列数由可用宽度决定:每列至少 264px(VPS 信息多,至少 340px),手机上自然变成 1 列。
- * 264px 是按真实数据试出来的:再窄一些虽然能多排一列,但会有一成左右的小块因价格换行而变高,
- * 把整排撑出空白,总高度并没有变短,看起来还更乱。
- * 同一排的小块被拉伸到等高,底边对齐。
+ * 小块网格。所有小块一样宽、一样高:同一排不会有谁被撑高,也不会有谁被加宽。
+ *
+ * 列数由内容决定:app.js 的 fitColumns 从能排下的最多列数开始尝试,找出所有小块都保持
+ * 同样高度(内容不换行到第三行)的最多列数,写到 data-cols 上。换句话说,列宽取决于最长的那条内容。
+ * 下面的 auto-fill 只是脚本运行之前(或没有脚本时)的初始排法。
  */
 .tiles {
   display: grid;
@@ -829,6 +830,37 @@ a.stat:hover .stat-value {
   gap: 6px;
   padding: 0;
   list-style: none;
+}
+
+.tiles-wide {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+}
+
+.tiles[data-cols="1"] { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+.tiles[data-cols="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.tiles[data-cols="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tiles[data-cols="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tiles[data-cols="5"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.tiles[data-cols="6"] { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.tiles[data-cols="7"] { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.tiles[data-cols="8"] { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+.tiles[data-cols="9"] { grid-template-columns: repeat(9, minmax(0, 1fr)); }
+.tiles[data-cols="10"] { grid-template-columns: repeat(10, minmax(0, 1fr)); }
+.tiles[data-cols="11"] { grid-template-columns: repeat(11, minmax(0, 1fr)); }
+.tiles[data-cols="12"] { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+
+/* fitColumns 测量时:不拉伸(读到的是内容本身的高度),筛选掉的小块也临时参与测量,
+   这样列数不会随搜索、筛选来回变化。整个测量在同一帧内完成,页面上看不到。 */
+.tiles.is-measuring > .tile {
+  align-self: start;
+}
+
+.tiles.is-measuring > .tile[hidden] {
+  display: flex !important;
+}
+
+.tile {
+  align-self: start;
 }
 
 .tiles-wide {
@@ -911,23 +943,28 @@ a.tile-name:hover {
 .due-danger { background: var(--danger-soft); color: var(--danger); }
 .due-expired { background: var(--danger-solid); color: #fff; }
 
-/* 第二行:左边是日期、注册商、备注(一段可以自然换行的文字),右边是价格 */
-.tile-meta {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 0 10px;
+/* 第二行:到期日期在左,价格在右。两者长度固定,不会换行 */
+.tile-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 1.55em; /* 永久且免费等情况下这一行内容很少,也保持一行高 */
   color: var(--text-2);
   font-size: 12px;
   line-height: 1.55;
 }
 
-.tile-info {
-  min-width: 0;
+/* 第三行:注册商(VPS 是 IP 和配置)及备注。长度不定,所以单独占一行、用满整个宽度 */
+.tile-sub {
+  min-height: 1.55em; /* 没有注册商、备注的记录也保持一行高,和其它小块一致 */
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.55;
   overflow-wrap: anywhere;
 }
 
-.tile-info > span {
+.tile-sub > span {
   margin-right: 5px; /* 各项之间除了一个空格再多留一点间距 */
 }
 
@@ -942,19 +979,54 @@ a.tile-name:hover {
   white-space: nowrap;
 }
 
+.tile-cost > span + span {
+  margin-left: 8px;
+}
+
+/*
+ * 只有一列时(手机竖屏)没有并排的小块需要对齐,不必固定三行:把第二、三行合成一行
+ * ——左边日期,中间注册商 / 配置 / 备注(可换行),右边价格——列表短很多。
+ * 第二行的容器用 display: contents 拆开,日期和价格直接参与小块的排版。
+ */
+.tiles[data-cols="1"] > .tile {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+}
+
+.tiles[data-cols="1"] > .tile > .tile-top {
+  flex: 0 0 100%;
+}
+
+.tiles[data-cols="1"] > .tile > .tile-row {
+  display: contents;
+}
+
+.tiles[data-cols="1"] .tile-row > :empty {
+  display: none; /* 永久有效的记录没有日期,不留空位 */
+}
+
+.tiles[data-cols="1"] > .tile > .tile-sub {
+  flex: 1 1 0;
+  min-width: 0;
+  order: 1;
+}
+
+.tiles[data-cols="1"] .tile-row > .tile-cost {
+  order: 2;
+  margin-left: auto;
+}
+
 /* 只在管理面板里显示的补充信息(折算金额、年化价格) */
 .detail-only {
   display: none;
 }
 
-.tile-specs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
+/* VPS 的配置标签:和 IP、备注排在第三行的同一段文字里 */
 .spec {
-  padding: 0 6px;
+  display: inline-block;
+  padding: 0 5px;
   border-radius: 5px;
   background: var(--surface-3);
   color: var(--text-2);
@@ -1044,7 +1116,8 @@ html[data-selecting] .main {
   font-size: 16px;
 }
 
-.sheet-info .tile-meta {
+.sheet-info .tile-row,
+.sheet-info .tile-sub {
   font-size: 13.5px;
 }
 
@@ -1056,14 +1129,12 @@ html[data-selecting] .main {
   display: inline;
 }
 
-/* 面板里价格后面还跟着折算金额,宽度不定:改为上下排列,价格换到信息下面 */
-.sheet-info .tile-meta {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 2px;
+/* 面板里价格后面还跟着折算金额,宽度不定:放不下时整体换行 */
+.sheet-info .tile-row {
+  flex-wrap: wrap;
 }
 
 .sheet-info .tile-cost {
-  text-align: left;
   white-space: normal;
 }
 

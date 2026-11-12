@@ -1,8 +1,9 @@
 {{/*
   面板首页:一页展示全部域名与 VPS,不分页、不分标签页。
 
-  - 每条记录是一个紧凑的"小块"(.tile):第一行是名称和到期标签;第二行左边是日期、注册商、备注
-    (放不下就自然换行),右边是价格。小块排成自适应的网格,同一排等高;长内容一律换行,不截断。
+  - 每条记录是一个紧凑的"小块"(.tile),固定三行:名称和到期标签 / 到期日期和价格 / 注册商(VPS 是
+    IP 和配置)及备注。长度不定的内容都在第三行,用满整个小块的宽度。所有小块一样宽、一样高,
+    列数由 app.js 按最长的内容决定(见 fitColumns):内容完整显示,不截断、不加宽、不把别的小块撑高。
   - 访客能看到哪些字段由后端决定(见 views.go):不可见的字段在数据里就是空的,这里不做权限判断。
   - 小块上的 data-* 属性供 app.js 做搜索、筛选和排序;管理操作在点击小块后弹出的面板里。
 */}}
@@ -95,14 +96,18 @@
           {{- end}}
           {{template "due" .Expiry}}
         </div>
-        <div class="tile-meta">
-          <div class="tile-info">
-            {{if .Expiry.Date}}<span class="mono">{{.Expiry.Date}}</span>{{end}}
-            {{if .Registrar}}<span>{{.Registrar}}</span>{{end}}
-            {{if .Notes}}<span class="tile-note">{{.Notes}}</span>{{end}}
-          </div>
+        {{if or $.Domains.ShowExpiry $.Domains.ShowPrice}}
+        <div class="tile-row">
+          <span class="mono">{{.Expiry.Date}}</span>
           {{template "price" .Price}}
         </div>
+        {{end}}
+        {{if or $.Domains.ShowRegistrar $.Domains.ShowNotes}}
+        <div class="tile-sub">
+          {{if .Registrar}}<span>{{.Registrar}}</span>{{end}}
+          {{if .Notes}}<span class="tile-note">{{.Notes}}</span>{{end}}
+        </div>
+        {{end}}
       </li>
       {{end}}
     </ul>
@@ -135,16 +140,20 @@
           <span class="tile-name">{{.Vendor}}{{if .Region}} <span class="tag tag-accent mono">{{.Region}}</span>{{end}}{{if $.IsAdmin}}{{template "flags" .}}{{end}}</span>
           {{template "due" .Expiry}}
         </div>
-        {{if .Chips}}<div class="tile-specs">{{range .Chips}}<span class="spec mono">{{.}}</span>{{end}}</div>{{end}}
-        <div class="tile-meta">
-          <div class="tile-info">
-            {{if .Expiry.Date}}<span class="mono">{{.Expiry.Date}}</span>{{end}}
-            {{if .IP}}<span class="mono">{{.IP}}</span>{{end}}
-            {{if .Specs}}<span class="tile-note">{{.Specs}}</span>{{end}}
-            {{if .Notes}}<span class="tile-note">{{.Notes}}</span>{{end}}
-          </div>
+        {{if or $.VPS.ShowExpiry $.VPS.ShowPrice}}
+        <div class="tile-row">
+          <span class="mono">{{.Expiry.Date}}</span>
           {{template "price" .Price}}
         </div>
+        {{end}}
+        {{if or $.VPS.ShowIP $.VPS.ShowSpecs $.VPS.ShowNotes}}
+        <div class="tile-sub">
+          {{if .IP}}<span class="mono">{{.IP}}</span>{{end}}
+          {{range .Chips}}<span class="spec mono">{{.}}</span>{{end}}
+          {{if .Specs}}<span class="tile-note">{{.Specs}}</span>{{end}}
+          {{if .Notes}}<span class="tile-note">{{.Notes}}</span>{{end}}
+        </div>
+        {{end}}
       </li>
       {{end}}
     </ul>

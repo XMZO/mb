@@ -338,6 +338,30 @@
   const daysOf = (tile) => (tile.dataset.days === '' ? null : Number(tile.dataset.days));
   const idsOf = (tiles) => tiles.map((tile) => Number(tile.dataset.id));
 
+  // 决定小块网格的列数。网格里同一排的小块是等高的,只要有一个小块的内容多出一行,
+  // 整排都会被撑高、留出空白。所以这里从能排下的最多列数开始,逐个减少,直到所有小块
+  // 都一样高为止:列宽由最长的那条内容决定,每个小块都一样宽、一样高,内容完整显示。
+  // 测量包括被搜索、筛选隐藏的小块,列数不会随筛选来回变化。
+  function fitColumns(list) {
+    const tiles = $$('.tile', list);
+    const minWidth = 240; // 每列至少这么宽;实际宽度由内容决定
+    const gap = parseFloat(getComputedStyle(list).columnGap) || 0;
+    const most = Math.max(1, Math.floor((list.clientWidth + gap) / (minWidth + gap)));
+
+    list.classList.add('is-measuring');
+    let columns = 1;
+    for (let n = most; n >= 2; n -= 1) { // 小块比列数少时也按这个列数排,不让单个小块被拉满整排
+      list.dataset.cols = String(n);
+      const heights = tiles.map((tile) => tile.getBoundingClientRect().height);
+      if (Math.max(...heights) - Math.min(...heights) < 1.5) {
+        columns = n;
+        break;
+      }
+    }
+    list.dataset.cols = String(columns);
+    list.classList.remove('is-measuring');
+  }
+
   function initBoard() {
     const board = $('[data-role="board"]');
     if (!board) return;
@@ -491,6 +515,17 @@
     reorder();
     render();
     restoreScroll();
+
+    // 决定列数。宽度变化(旋转屏幕、调整窗口)和字体加载完成都会改变排版,两种情况都重新算一次。
+    const refit = () => groups.forEach((group) => group.list && fitColumns(group.list));
+    refit();
+    let lastWidth = board.clientWidth;
+    new ResizeObserver(() => {
+      if (board.clientWidth === lastWidth) return; // 只关心宽度;列数变化引起的高度变化不用理会
+      lastWidth = board.clientWidth;
+      refit();
+    }).observe(board);
+    if (document.fonts) document.fonts.ready.then(refit);
 
     // ---- 以下仅管理员可用 ----
 
