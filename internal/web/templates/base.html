@@ -1,0 +1,62 @@
+{{/* 所有页面共用的外壳。各页面文件定义 "content" 模板。 */}}
+{{define "base"}}<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{.CSRFToken}}">
+  <title>{{.Title}} · MB 资产面板</title>
+  <link rel="icon" href="{{if .FaviconURL}}{{.FaviconURL}}{{else}}{{static "favicon.svg"}}{{end}}">
+  <link rel="stylesheet" href="{{static "app.css"}}">
+  <script src="{{static "boot.js"}}"></script>
+  <script src="{{static "app.js"}}" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a class="brand" href="/">MB 资产面板</a>
+      {{if .PublicMode}}
+        <span class="tag tag-accent" title="未登录的访客可以查看面板">公开只读</span>
+      {{else}}
+        <span class="tag" title="需要登录才能查看">私有</span>
+      {{end}}
+      <nav class="topbar-actions" aria-label="站点">
+        <button type="button" class="btn btn-sm btn-ghost" data-action="toggle-theme" aria-label="切换深色 / 浅色主题">主题</button>
+        {{if .IsAdmin}}
+          <a class="btn btn-sm" href="/admin/settings">设置</a>
+          <form method="post" action="/logout">
+            {{template "csrf" .}}
+            <button class="btn btn-sm">退出</button>
+          </form>
+        {{else}}
+          <a class="btn btn-sm btn-primary" href="/login">登录</a>
+        {{end}}
+      </nav>
+    </div>
+  </header>
+
+  <main class="container main">
+    {{with .Flash}}<div class="alert alert-{{.Kind}}" role="status">{{.Message}}</div>{{end}}
+    {{template "content" .}}
+  </main>
+
+  <footer class="container footer">
+    <span title="{{if .Commit}}commit {{.Commit}}{{else}}开发版本{{end}}">MB {{.Version}}</span>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <dialog class="dialog" id="confirmDialog">
+    <form method="dialog">
+      <p class="dialog-message" data-role="message"></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn" data-action="close-dialog">取消</button>
+        <button class="btn btn-primary" data-role="ok">确定</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>
+{{end}}
+
+{{define "csrf"}}<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">{{end}}

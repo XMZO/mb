@@ -1,0 +1,73 @@
+{{/* 多个页面共用的片段。 */}}
+
+{{/* ---- 面板:资产小块里的片段 ---- */}}
+
+{{/* 到期标签。参数:expiryView;访客无权查看到期时间时 Label 为空,什么都不输出。 */}}
+{{define "due"}}{{if .Label}}<span class="due due-{{.Tone}}">{{.Label}}</span>{{end}}{{end}}
+
+{{/*
+  价格,放在小块第二行的右侧。参数:priceView;访客无权查看价格时什么都不输出。
+  小块里只显示原始价格(靠右,同一列上下对齐,便于比较);折算后的金额和年化价格带 detail-only,
+  只在点开的管理面板里显示,鼠标悬停在价格上也能看到折算金额。
+*/}}
+{{define "price"}}
+  {{- if .Amount}}
+  <div class="tile-cost mono">
+    <span{{if .Base}} title="{{.Base}}"{{end}}>{{.Amount}}{{if .Billing}} / {{.Billing}}{{end}}</span>
+    {{if .Base}}<span class="detail-only">{{.Base}}</span>{{end}}
+    {{if .Annual}}<span class="detail-only">{{.Annual}}</span>{{end}}
+  </div>
+  {{- end}}
+{{end}}
+
+{{/* 域名。参数:domainRow。每个点后面允许换行,这样长域名会在点处折行而不是从中间断开。 */}}
+{{define "domain-name"}}{{range $i, $part := .NameParts}}{{if $i}}.<wbr>{{end}}{{$part}}{{end}}{{end}}
+
+{{/* 名称后面的状态标签。参数:domainRow 或 vpsRow */}}
+{{define "flags"}}
+  {{- if .Hidden}} <span class="tag" title="公开模式下访客看不到">隐藏</span>{{end}}
+  {{- if and .Price.Excluded (ne .Price.Amount "免费")}} <span class="tag" title="不计入年度成本">不计成本</span>{{end}}
+  {{- if .Price.NoRate}} <span class="tag tag-warn" title="缺少该币种的汇率，未计入年度成本">缺少汇率</span>{{end}}
+{{end}}
+
+{{/* ---- 资产表单:域名与 VPS 共用的字段。参数:表单页面(.Form、.Currencies) ---- */}}
+
+{{define "expiry-field"}}
+<div class="field">
+  <label class="field-label" for="expires_at">到期时间</label>
+  <input type="date" class="input mono" id="expires_at" name="expires_at" value="{{.Form.ExpiresAt}}"{{if .Form.Permanent}} disabled{{end}}>
+  <label class="check-label">
+    <input type="checkbox" class="check" name="permanent" value="1" data-role="permanent"{{if .Form.Permanent}} checked{{end}}> 永久有效
+  </label>
+</div>
+{{end}}
+
+{{define "price-field"}}
+<div class="field">
+  <label class="field-label" for="price">续费价格</label>
+  <div class="input-group">
+    <input class="input mono" id="price" name="price" value="{{.Form.Price}}" inputmode="decimal" placeholder="0">
+    <select class="select mono" name="currency" aria-label="币种">
+      {{range .Currencies}}<option value="{{.Code}}"{{if eq .Code $.Form.Currency}} selected{{end}}>{{.Code}}</option>
+      {{end}}
+    </select>
+  </div>
+</div>
+{{end}}
+
+{{define "flag-options"}}
+<div class="field field-full">
+  <span class="field-label">选项</span>
+  <div class="check-row">
+    <label class="check-label" title="排在列表最前面并高亮显示">
+      <input type="checkbox" class="check" name="pinned" value="1"{{if .Form.Pinned}} checked{{end}}> 置顶
+    </label>
+    <label class="check-label" title="公开模式下访客看不到这条记录">
+      <input type="checkbox" class="check" name="hidden" value="1"{{if .Form.Hidden}} checked{{end}}> 对访客隐藏
+    </label>
+    <label class="check-label" title="适合免费、试用或不打算续费的资产">
+      <input type="checkbox" class="check" name="exclude_cost" value="1"{{if .Form.ExcludeCost}} checked{{end}}> 不计入年度成本
+    </label>
+  </div>
+</div>
+{{end}}

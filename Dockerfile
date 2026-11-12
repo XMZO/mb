@@ -6,7 +6,7 @@ FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS build
 
 WORKDIR /src
 
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache ca-certificates
 
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
@@ -20,13 +20,12 @@ ARG APP_COMMIT=
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
-    go build -trimpath -ldflags="-s -w -buildid= -X=mb/internal/mb.appVersion=${APP_VERSION} -X=mb/internal/mb.appCommit=${APP_COMMIT}" -o /out/mb .
+    go build -trimpath -ldflags="-s -w -buildid= -X=mb/internal/buildinfo.Version=${APP_VERSION} -X=mb/internal/buildinfo.Commit=${APP_COMMIT}" -o /out/mb .
 RUN mkdir -p /out/data /out/tmp
 
 FROM scratch
 
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --from=build /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=build --chown=10001:10001 /out/data /data
 COPY --from=build --chown=10001:10001 /out/tmp /tmp
 COPY --from=build /out/mb /usr/local/bin/mb
@@ -34,7 +33,6 @@ COPY --from=build /out/mb /usr/local/bin/mb
 ENV MB_ADDR=:15000
 ENV MB_DB=/data/mb.db
 ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
-ENV ZONEINFO=/usr/share/zoneinfo
 ENV TMPDIR=/tmp
 
 WORKDIR /app

@@ -1,0 +1,286 @@
+{{/*
+  面板首页:一页展示全部域名与 VPS,不分页、不分标签页。
+
+  - 每条记录是一个紧凑的"小块"(.tile):第一行是名称和到期标签;第二行左边是日期、注册商、备注
+    (放不下就自然换行),右边是价格。小块排成自适应的网格,同一排等高;长内容一律换行,不截断。
+  - 访客能看到哪些字段由后端决定(见 views.go):不可见的字段在数据里就是空的,这里不做权限判断。
+  - 小块上的 data-* 属性供 app.js 做搜索、筛选和排序;管理操作在点击小块后弹出的面板里。
+*/}}
+{{define "content"}}
+<div class="board" data-role="board"{{if .IsAdmin}} data-admin{{end}}>
+
+  {{/* ---- 概览:一行数字,不占大块面积 ---- */}}
+  <section class="summary" aria-label="概览">
+    {{if .Stats.ShowTotals}}
+    <div class="stat">
+      <span class="stat-label">年度续费</span>
+      <span class="stat-value">{{.Stats.Total}}</span>
+    </div>
+    {{end}}
+    <a class="stat" href="#domain">
+      <span class="stat-label">域名</span>
+      <span class="stat-value">{{.Stats.DomainCount}}{{if .Stats.ShowTotals}}<small>{{.Stats.DomainTotal}}</small>{{end}}</span>
+    </a>
+    <a class="stat" href="#vps">
+      <span class="stat-label">VPS</span>
+      <span class="stat-value">{{.Stats.VPSCount}}{{if .Stats.ShowTotals}}<small>{{.Stats.VPSTotal}}</small>{{end}}</span>
+    </a>
+    <label class="stat stat-control">
+      <span class="stat-label">统计币种</span>
+      <select class="select select-sm mono" data-role="base-currency" title="价格折算与统计使用的币种">
+        {{range .Currencies}}<option value="{{.Code}}"{{if eq .Code $.BaseCurrency}} selected{{end}}>{{.Code}}</option>
+        {{end}}
+      </select>
+    </label>
+    <p class="summary-note">
+      {{range .FX.Pairs}}<span class="mono">{{.}}</span>{{end}}
+      <span>汇率来源 {{.FX.Source}}{{if .FX.RateDate}}（{{.FX.RateDate}}）{{end}}</span>
+      {{if .Stats.Unconverted}}<span class="text-warn">{{.Stats.Unconverted}} 项因缺少汇率未计入总额</span>{{end}}
+      {{if .FX.Error}}<span class="text-warn">最近一次汇率更新失败：{{.FX.Error}}</span>{{end}}
+    </p>
+  </section>
+
+  {{/* ---- 工具栏:到期状态(数字即筛选按钮)、搜索、排序 ---- */}}
+  <div class="toolbar">
+    {{if or .Domains.ShowExpiry .VPS.ShowExpiry}}
+    <div class="filters" role="group" aria-label="按到期状态筛选">
+      <button type="button" class="filter" data-filter="all">全部<b data-count="all"></b></button>
+      <button type="button" class="filter filter-expired" data-filter="expired">已过期<b data-count="expired"></b></button>
+      <button type="button" class="filter filter-danger" data-filter="d30">30 天内<b data-count="d30"></b></button>
+      <button type="button" class="filter filter-warn" data-filter="d90">90 天内<b data-count="d90"></b></button>
+    </div>
+    {{end}}
+    <input type="search" class="input toolbar-search" data-role="search" placeholder="搜索域名、厂商、备注…" aria-label="搜索">
+    <select class="select toolbar-sort" data-role="sort" aria-label="排序方式">
+      <option value="manual">默认顺序</option>
+      {{if or .Domains.ShowExpiry .VPS.ShowExpiry}}<option value="expiry">最早到期在前</option>{{end}}
+      {{if or .Domains.ShowPrice .VPS.ShowPrice}}<option value="price">价格最高在前</option>{{end}}
+      <option value="name">按名称</option>
+      <option value="suffix">按域名后缀</option>
+      {{if or .Domains.ShowRegistrar .VPS.ShowRegion}}<option value="group">按注册商 / 地区</option>{{end}}
+    </select>
+    {{if .IsAdmin}}
+    <button type="button" class="btn" data-role="save-order" hidden title="把当前的排序结果保存为默认顺序">设为默认顺序</button>
+    <button type="button" class="btn toolbar-end" data-action="select-mode" aria-pressed="false" title="进入批量模式，点选多条记录后一起操作">批量</button>
+    {{end}}
+  </div>
+
+  {{/* ================= 域名 ================= */}}
+  {{if or .IsAdmin .Domains.Rows .Domains.Concealed}}
+  <section class="group" id="domain" data-kind="domain">
+    <header class="group-head">
+      <h2 class="group-title">域名<span class="group-count" data-role="count">{{len .Domains.Rows}}</span></h2>
+      {{if .IsAdmin}}
+      <div class="group-actions">
+        <button type="button" class="btn btn-sm" data-action="export">导出</button>
+        <a class="btn btn-sm btn-primary" href="/domains/new">新增域名</a>
+      </div>
+      {{end}}
+    </header>
+
+    {{if .Domains.Rows}}
+    <ul class="tiles" data-role="tiles">
+      {{range .Domains.Rows}}
+      <li class="tile{{if .Pinned}} is-pinned{{end}}" data-id="{{.ID}}" data-title="{{.Name}}" data-url="{{.URL}}"
+          data-pinned="{{if .Pinned}}1{{end}}" data-hidden="{{if .Hidden}}1{{end}}" data-excluded="{{if .Price.Excluded}}1{{end}}"
+          data-search="{{.Search}}" data-name="{{.SortName}}" data-suffix="{{.Suffix}}" data-group="{{.Registrar}}"
+          data-expires="{{.Expiry.ISO}}" data-days="{{.Expiry.Days}}" data-price="{{.Price.Sort}}" data-months="12"
+          {{- if $.IsAdmin}} tabindex="0" role="button"{{end}}>
+        <div class="tile-top">
+          {{if $.IsAdmin -}}
+            <span class="tile-check" aria-hidden="true"></span>
+            <span class="tile-name"><span class="mono">{{template "domain-name" .}}</span>{{template "flags" .}}</span>
+          {{- else -}}
+            <a class="tile-name mono" href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{template "domain-name" .}}</a>
+          {{- end}}
+          {{template "due" .Expiry}}
+        </div>
+        <div class="tile-meta">
+          <div class="tile-info">
+            {{if .Expiry.Date}}<span class="mono">{{.Expiry.Date}}</span>{{end}}
+            {{if .Registrar}}<span>{{.Registrar}}</span>{{end}}
+            {{if .Notes}}<span class="tile-note">{{.Notes}}</span>{{end}}
+          </div>
+          {{template "price" .Price}}
+        </div>
+      </li>
+      {{end}}
+    </ul>
+    <p class="group-empty" data-role="empty" hidden>没有符合条件的域名。</p>
+    {{else}}
+    <p class="group-empty">还没有域名记录。</p>
+    {{end}}
+    {{if .Domains.Concealed}}<p class="group-note">另有 {{.Domains.Concealed}} 个域名未公开。</p>{{end}}
+  </section>
+  {{end}}
+
+  {{/* ================= VPS ================= */}}
+  {{if or .IsAdmin .VPS.Rows .VPS.Concealed}}
+  <section class="group" id="vps" data-kind="vps">
+    <header class="group-head">
+      <h2 class="group-title">VPS<span class="group-count" data-role="count">{{len .VPS.Rows}}</span></h2>
+      {{if .IsAdmin}}<a class="btn btn-sm btn-primary" href="/vps/new">新增 VPS</a>{{end}}
+    </header>
+
+    {{if .VPS.Rows}}
+    <ul class="tiles tiles-wide" data-role="tiles">
+      {{range .VPS.Rows}}
+      <li class="tile{{if .Pinned}} is-pinned{{end}}" data-id="{{.ID}}" data-title="{{.Vendor}}" data-copy="{{.IP}}"
+          data-pinned="{{if .Pinned}}1{{end}}" data-hidden="{{if .Hidden}}1{{end}}" data-excluded="{{if .Price.Excluded}}1{{end}}"
+          data-search="{{.Search}}" data-name="{{.SortName}}" data-suffix="" data-group="{{.Region}}"
+          data-expires="{{.Expiry.ISO}}" data-days="{{.Expiry.Days}}" data-price="{{.Price.Sort}}" data-months="{{.Billing}}"
+          {{- if $.IsAdmin}} tabindex="0" role="button"{{end}}>
+        <div class="tile-top">
+          {{if $.IsAdmin}}<span class="tile-check" aria-hidden="true"></span>{{end}}
+          <span class="tile-name">{{.Vendor}}{{if .Region}} <span class="tag tag-accent mono">{{.Region}}</span>{{end}}{{if $.IsAdmin}}{{template "flags" .}}{{end}}</span>
+          {{template "due" .Expiry}}
+        </div>
+        {{if .Chips}}<div class="tile-specs">{{range .Chips}}<span class="spec mono">{{.}}</span>{{end}}</div>{{end}}
+        <div class="tile-meta">
+          <div class="tile-info">
+            {{if .Expiry.Date}}<span class="mono">{{.Expiry.Date}}</span>{{end}}
+            {{if .IP}}<span class="mono">{{.IP}}</span>{{end}}
+            {{if .Specs}}<span class="tile-note">{{.Specs}}</span>{{end}}
+            {{if .Notes}}<span class="tile-note">{{.Notes}}</span>{{end}}
+          </div>
+          {{template "price" .Price}}
+        </div>
+      </li>
+      {{end}}
+    </ul>
+    <p class="group-empty" data-role="empty" hidden>没有符合条件的 VPS。</p>
+    {{else}}
+    <p class="group-empty">还没有 VPS 记录。</p>
+    {{end}}
+    {{if .VPS.Concealed}}<p class="group-note">另有 {{.VPS.Concealed}} 台 VPS 未公开。</p>{{end}}
+  </section>
+  {{end}}
+</div>
+
+{{if .IsAdmin}}
+{{/* 点击小块后弹出的管理面板:上半部分复制小块的内容,下半部分是操作。 */}}
+<dialog class="dialog sheet" id="itemSheet">
+  <div class="sheet-info" data-role="info"></div>
+
+  <div class="sheet-row" data-role="renew-row">
+    <span class="sheet-label">续费</span>
+    <div class="sheet-buttons" data-role="renew-options"></div>
+  </div>
+  <div class="sheet-row">
+    <span class="sheet-label">操作</span>
+    <div class="sheet-buttons">
+      <a class="btn btn-sm" data-role="edit" href="#">编辑</a>
+      <a class="btn btn-sm" data-role="visit" href="#" target="_blank" rel="noopener noreferrer">打开网站</a>
+      <button type="button" class="btn btn-sm" data-role="copy">复制</button>
+      <button type="button" class="btn btn-sm" data-item-action="pin"></button>
+      <button type="button" class="btn btn-sm" data-item-action="hide"></button>
+      <button type="button" class="btn btn-sm" data-item-action="cost"></button>
+      <button type="button" class="btn btn-sm btn-danger" data-item-action="delete">删除</button>
+    </div>
+  </div>
+  <div class="dialog-actions">
+    <button type="button" class="btn" data-action="close-dialog">关闭</button>
+  </div>
+</dialog>
+
+{{/* 批量模式下固定在底部的操作条。 */}}
+<div class="selection-bar" data-role="selection-bar" hidden>
+  <strong data-role="selected-count">已选 0 项</strong>
+  <button type="button" class="btn btn-sm" data-select="all">全选当前结果</button>
+  <span class="selection-actions">
+    <button type="button" class="btn btn-sm" data-batch="renew">续费</button>
+    <button type="button" class="btn btn-sm" data-batch="billing_months" title="仅对选中的 VPS 生效">付费周期</button>
+    <button type="button" class="btn btn-sm" data-batch="pin">置顶</button>
+    <button type="button" class="btn btn-sm" data-batch="unpin">取消置顶</button>
+    <button type="button" class="btn btn-sm" data-batch="hide">隐藏</button>
+    <button type="button" class="btn btn-sm" data-batch="unhide">取消隐藏</button>
+    <button type="button" class="btn btn-sm" data-batch="exclude_cost">不计成本</button>
+    <button type="button" class="btn btn-sm" data-batch="include_cost">计入成本</button>
+    <button type="button" class="btn btn-sm btn-danger" data-batch="delete">删除</button>
+  </span>
+  <button type="button" class="btn btn-sm btn-primary" data-select="done">完成</button>
+</div>
+
+{{/* 续费:自定义时长 / 日期,单条与批量共用。 */}}
+<dialog class="dialog" id="renewDialog">
+  <form method="dialog">
+    <h2 class="dialog-title">续费</h2>
+    <p class="muted small" data-role="target"></p>
+
+    <label class="radio-row">
+      <input type="radio" name="mode" value="extend" checked>
+      <span>从当前到期日顺延</span>
+    </label>
+    <div class="dialog-indent">
+      <div class="inline-field">
+        <input type="number" class="input input-narrow mono" name="months" value="12" inputmode="numeric" aria-label="顺延的月数">
+        <span>个月</span>
+      </div>
+      <p class="muted small" data-role="preview"></p>
+    </div>
+
+    <label class="radio-row">
+      <input type="radio" name="mode" value="date">
+      <span>设为指定日期</span>
+    </label>
+    <div class="dialog-indent">
+      <input type="date" class="input mono" name="date" aria-label="新的到期日">
+    </div>
+
+    <label class="radio-row">
+      <input type="radio" name="mode" value="permanent">
+      <span>设为永久有效</span>
+    </label>
+    <p class="text-danger small" data-role="error" hidden></p>
+
+    <div class="dialog-actions">
+      <button type="button" class="btn" data-action="close-dialog">取消</button>
+      <button class="btn btn-primary">确定</button>
+    </div>
+  </form>
+</dialog>
+
+{{/* 批量设置付费周期。 */}}
+<dialog class="dialog" id="monthsDialog">
+  <form method="dialog">
+    <h2 class="dialog-title">设置付费周期</h2>
+    <div class="inline-field">
+      <span>每</span>
+      <input type="number" class="input input-narrow mono" name="months" min="1" max="1200" step="1" value="12" required aria-label="付费周期的月数">
+      <span>个月付费一次</span>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn" data-action="close-dialog">取消</button>
+      <button class="btn btn-primary">确定</button>
+    </div>
+  </form>
+</dialog>
+
+{{/* 导出域名:范围对应的 ID 列表由脚本在提交前填入。 */}}
+<dialog class="dialog" id="exportDialog">
+  <form method="post" action="/domains/export">
+    {{template "csrf" .}}
+    <input type="hidden" name="scope" value="all">
+    <input type="hidden" name="ids" value="">
+    <h2 class="dialog-title">导出域名</h2>
+
+    <fieldset class="dialog-group">
+      <legend>范围</legend>
+      <label class="radio-row"><input type="radio" name="range" value="all" checked><span>全部域名</span></label>
+      <label class="radio-row"><input type="radio" name="range" value="filtered"><span>当前搜索 / 筛选的结果</span></label>
+      <label class="radio-row"><input type="radio" name="range" value="selected"><span>批量模式下选中的域名</span></label>
+    </fieldset>
+    <fieldset class="dialog-group">
+      <legend>格式</legend>
+      <label class="radio-row"><input type="radio" name="format" value="txt" checked><span>TXT（每行一个域名）</span></label>
+      <label class="radio-row"><input type="radio" name="format" value="csv"><span>CSV（包含全部字段）</span></label>
+    </fieldset>
+
+    <div class="dialog-actions">
+      <button type="button" class="btn" data-action="close-dialog">取消</button>
+      <button class="btn btn-primary">下载</button>
+    </div>
+  </form>
+</dialog>
+{{end}}
+{{end}}

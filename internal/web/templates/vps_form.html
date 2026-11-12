@@ -1,0 +1,144 @@
+{{/* VPS 的新增 / 编辑表单:一张卡片,分"基础信息 / 配置 / 续费"三组,字段按 12 列网格排布。 */}}
+{{define "content"}}
+<div class="page">
+  <div class="page-head">
+    <h1 class="page-title">{{.Title}}</h1>
+    <a class="btn" href="/#vps">返回面板</a>
+  </div>
+
+  {{if .Error}}<div class="alert alert-error" role="alert">{{.Error}}</div>{{end}}
+
+  <form method="post" action="{{.Action}}" class="card form-grid">
+    {{template "csrf" .}}
+
+    <div class="field col-5">
+      <label class="field-label" for="vendor">厂商</label>
+      <input class="input" id="vendor" name="vendor" value="{{.Form.Vendor}}" placeholder="服务商名称" required{{if not .ID}} autofocus{{end}}>
+    </div>
+    <div class="field col-3 half">
+      <label class="field-label" for="region">地区</label>
+      <input class="input mono" id="region" name="region" value="{{.Form.Region}}" list="regionList" placeholder="HK / JP / US">
+    </div>
+    <div class="field col-4 half">
+      <label class="field-label" for="ip">IP</label>
+      <input class="input mono" id="ip" name="ip" value="{{.Form.IP}}" placeholder="192.0.2.1">
+    </div>
+
+    <h2 class="form-section">配置</h2>
+    <div class="field col-2 half">
+      <label class="field-label" for="cores">核心数</label>
+      <input class="input mono" id="cores" name="cores" value="{{.Form.Cores}}" inputmode="numeric" list="coresList" placeholder="2">
+    </div>
+    <div class="field col-2 half">
+      <label class="field-label" for="memory_gb">内存 GB</label>
+      <input class="input mono" id="memory_gb" name="memory_gb" value="{{.Form.MemoryGB}}" inputmode="decimal" list="memoryList" placeholder="4">
+    </div>
+    <div class="field col-4">
+      <label class="field-label" for="bandwidth_value">带宽</label>
+      <div class="input-group">
+        <input class="input mono" id="bandwidth_value" name="bandwidth_value" value="{{.Form.BandwidthValue}}" inputmode="decimal" list="bandwidthList" placeholder="100">
+        <select class="select mono" name="bandwidth_unit" aria-label="带宽单位">
+          <option value="Mbps"{{if ne .Form.BandwidthUnit "Gbps"}} selected{{end}}>Mbps</option>
+          <option value="Gbps"{{if eq .Form.BandwidthUnit "Gbps"}} selected{{end}}>Gbps</option>
+        </select>
+      </div>
+    </div>
+    <div class="field col-4">
+      <label class="field-label" for="traffic_tb">流量 TB</label>
+      <div class="input-group">
+        <input class="input mono" id="traffic_tb" name="traffic_tb" value="{{.Form.TrafficTB}}" inputmode="decimal" list="trafficList" placeholder="留空不显示">
+        <select class="select" name="traffic_dir" aria-label="流量计费方向">
+          <option value=""{{if eq .Form.TrafficDir ""}} selected{{end}}>不标注方向</option>
+          <option value="single"{{if eq .Form.TrafficDir "single"}} selected{{end}}>单向</option>
+          <option value="double"{{if eq .Form.TrafficDir "double"}} selected{{end}}>双向</option>
+        </select>
+      </div>
+      <span class="field-help">填 0 表示不限流量。</span>
+    </div>
+
+    <div class="field col-6">
+      <span class="field-label">硬盘</span>
+      <div class="disk-rows" data-role="disk-rows">
+        {{range .Form.Disks}}
+        <div class="input-group disk-row">
+          <input class="input mono" name="disk_gb" value="{{.Size}}" inputmode="numeric" list="diskList" placeholder="容量 GB" aria-label="硬盘容量（GB）">
+          <select class="select mono" name="disk_type" aria-label="硬盘类型">
+            <option value=""{{if eq .Type ""}} selected{{end}}>类型</option>
+            <option value="SSD"{{if eq .Type "SSD"}} selected{{end}}>SSD</option>
+            <option value="HDD"{{if eq .Type "HDD"}} selected{{end}}>HDD</option>
+          </select>
+          <button type="button" class="btn" data-action="remove-disk" aria-label="移除这块硬盘">移除</button>
+        </div>
+        {{end}}
+      </div>
+      <button type="button" class="btn btn-sm field-button" data-action="add-disk">添加一块硬盘</button>
+    </div>
+    <div class="field col-6">
+      <label class="field-label" for="specs">补充说明</label>
+      <textarea class="input" id="specs" name="specs" rows="2" placeholder="线路、套餐名称等，如：CN2 GIA / 促销款">{{.Form.Specs}}</textarea>
+    </div>
+
+    <h2 class="form-section">续费</h2>
+    <div class="col-4">{{template "expiry-field" .}}</div>
+    <div class="col-5">
+      {{template "price-field" .}}
+      <span class="field-help">每个付费周期的价格，面板会自动折算成年度成本。</span>
+    </div>
+    <div class="field col-3">
+      <label class="field-label" for="billing_months">付费周期（月）</label>
+      <input class="input mono" id="billing_months" name="billing_months" value="{{.Form.BillingMonths}}" inputmode="numeric" list="billingList" placeholder="12">
+      <span class="field-help">1 月付 · 12 年付 · 36 三年付</span>
+    </div>
+
+    <div class="field field-full">
+      <label class="field-label" for="notes">备注</label>
+      <textarea class="input" id="notes" name="notes" rows="2" placeholder="用途、控制台地址、注意事项等">{{.Form.Notes}}</textarea>
+    </div>
+
+    {{template "flag-options" .}}
+
+    <div class="form-actions">
+      <button class="btn btn-primary">保存</button>
+      <a class="btn" href="/#vps">取消</a>
+      {{if .ID}}<button type="button" class="btn btn-danger form-delete" data-delete-asset="vps" data-id="{{.ID}}" data-title="{{.Form.Vendor}}">删除</button>{{end}}
+    </div>
+  </form>
+</div>
+
+{{/* "添加一块硬盘"时复制的空行。 */}}
+<template id="diskRowTemplate">
+  <div class="input-group disk-row">
+    <input class="input mono" name="disk_gb" inputmode="numeric" list="diskList" placeholder="容量 GB" aria-label="硬盘容量（GB）">
+    <select class="select mono" name="disk_type" aria-label="硬盘类型">
+      <option value="">类型</option>
+      <option value="SSD">SSD</option>
+      <option value="HDD">HDD</option>
+    </select>
+    <button type="button" class="btn" data-action="remove-disk" aria-label="移除这块硬盘">移除</button>
+  </div>
+</template>
+
+<datalist id="regionList">
+  <option value="HK"><option value="TW"><option value="JP"><option value="KR"><option value="SG">
+  <option value="US"><option value="US-W"><option value="US-E"><option value="CA">
+  <option value="DE"><option value="NL"><option value="UK"><option value="FR"><option value="AU"><option value="IN">
+</datalist>
+<datalist id="coresList">
+  <option value="1"><option value="2"><option value="4"><option value="6"><option value="8"><option value="12"><option value="16"><option value="32">
+</datalist>
+<datalist id="memoryList">
+  <option value="0.5"><option value="1"><option value="2"><option value="4"><option value="8"><option value="16"><option value="32"><option value="64">
+</datalist>
+<datalist id="diskList">
+  <option value="10"><option value="20"><option value="40"><option value="80"><option value="100"><option value="200"><option value="500"><option value="1000">
+</datalist>
+<datalist id="trafficList">
+  <option value="0"><option value="0.5"><option value="1"><option value="2"><option value="5"><option value="10"><option value="20">
+</datalist>
+<datalist id="bandwidthList">
+  <option value="1"><option value="10"><option value="100"><option value="200"><option value="500"><option value="1000">
+</datalist>
+<datalist id="billingList">
+  <option value="1"><option value="3"><option value="6"><option value="12"><option value="24"><option value="36">
+</datalist>
+{{end}}

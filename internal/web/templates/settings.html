@@ -1,0 +1,282 @@
+{{/*
+  设置页。顶部一排分类按钮,下面是对应的面板;每个面板是独立的表单,提交到各自的地址。
+  没有脚本时所有面板依次排开;有脚本时一次显示一个(见 app.js 的 initSettings)。
+*/}}
+{{define "content"}}
+<div class="page" data-role="settings" data-initial-panel="{{.Panel}}">
+  <div class="page-head">
+    <h1 class="page-title">设置</h1>
+    <a class="btn" href="/">返回面板</a>
+  </div>
+
+  <nav class="segments" aria-label="设置分类">
+    <a class="segment" href="#visibility" data-settings-tab="visibility">展示</a>
+    <a class="segment" href="#fx" data-settings-tab="fx">汇率</a>
+    <a class="segment" href="#email" data-settings-tab="email">邮件提醒</a>
+    <a class="segment" href="#backup" data-settings-tab="backup">备份</a>
+    <a class="segment" href="#security" data-settings-tab="security">安全</a>
+  </nav>
+
+  {{if .Error}}<div class="alert alert-error" role="alert">{{.Error}}</div>{{end}}
+
+  {{/* ---------- 展示 ---------- */}}
+  <section class="card settings-panel" data-settings-panel="visibility">
+    <h2 class="card-title">展示</h2>
+    <form method="post" action="/admin/settings/visibility" class="form-grid">
+      {{template "csrf" .}}
+
+      <div class="field field-full">
+        <label class="check-label">
+          <input type="checkbox" class="check" name="public_mode" value="1"{{if .Visibility.PublicMode}} checked{{end}}>
+          <strong>公开模式</strong>
+        </label>
+        <span class="field-help">开启后访客无需登录即可只读访问；关闭后必须登录才能查看。下面几项决定访客能看到什么，管理员始终能看到全部内容。</span>
+      </div>
+
+      <div class="field field-full">
+        <span class="field-label">访客可见的统计</span>
+        <div class="check-row">
+          <label class="check-label"><input type="checkbox" class="check" name="show_totals" value="1"{{if .Visibility.Show.Totals}} checked{{end}}> 年度续费成本</label>
+        </div>
+      </div>
+
+      <div class="field col-6">
+        <span class="field-label">访客可见的域名字段</span>
+        <div class="check-row">
+          <label class="check-label"><input type="checkbox" class="check" name="show_domain_registrar" value="1"{{if .Visibility.Show.DomainRegistrar}} checked{{end}}> 注册商</label>
+          <label class="check-label"><input type="checkbox" class="check" name="show_domain_expiry" value="1"{{if .Visibility.Show.DomainExpiry}} checked{{end}}> 到期时间</label>
+          <label class="check-label"><input type="checkbox" class="check" name="show_domain_price" value="1"{{if .Visibility.Show.DomainPrice}} checked{{end}}> 续费价格</label>
+          <label class="check-label"><input type="checkbox" class="check" name="show_domain_notes" value="1"{{if .Visibility.Show.DomainNotes}} checked{{end}}> 备注</label>
+        </div>
+      </div>
+      <div class="field col-6">
+        <span class="field-label">访客可见的 VPS 字段</span>
+        <div class="check-row">
+          <label class="check-label"><input type="checkbox" class="check" name="show_vps_ip" value="1"{{if .Visibility.Show.VPSIP}} checked{{end}}> IP</label>
+          <label class="check-label"><input type="checkbox" class="check" name="show_vps_region" value="1"{{if .Visibility.Show.VPSRegion}} checked{{end}}> 地区</label>
+          <label class="check-label"><input type="checkbox" class="check" name="show_vps_specs" value="1"{{if .Visibility.Show.VPSSpecs}} checked{{end}}> 配置</label>
+          <label class="check-label"><input type="checkbox" class="check" name="show_vps_expiry" value="1"{{if .Visibility.Show.VPSExpiry}} checked{{end}}> 到期时间</label>
+          <label class="check-label"><input type="checkbox" class="check" name="show_vps_price" value="1"{{if .Visibility.Show.VPSPrice}} checked{{end}}> 续费价格</label>
+          <label class="check-label"><input type="checkbox" class="check" name="show_vps_notes" value="1"{{if .Visibility.Show.VPSNotes}} checked{{end}}> 备注</label>
+        </div>
+      </div>
+      <p class="field-help field-full">单条记录还可以在编辑时勾选“对访客隐藏”，这样访客完全看不到它。</p>
+
+      <div class="field field-full">
+        <label class="field-label" for="favicon_url">站点图标（Favicon）</label>
+        <input class="input mono" id="favicon_url" name="favicon_url" value="{{.Favicon}}" placeholder="https://example.com/favicon.ico">
+        <span class="field-help">填写 https 开头的图片地址；留空则使用内置图标。</span>
+      </div>
+
+      <div class="form-actions"><button class="btn btn-primary">保存</button></div>
+    </form>
+  </section>
+
+  {{/* ---------- 汇率 ---------- */}}
+  <section class="card settings-panel" data-settings-panel="fx">
+    <h2 class="card-title">汇率</h2>
+    <div class="info-box">
+      <div class="info-line">{{range .FX.Samples}}<span class="mono">{{.}}</span>{{end}}</div>
+      <div class="info-line muted">
+        <span>来源 {{.FX.Source}}</span>
+        {{if .FX.RateDate}}<span>数据日期 {{.FX.RateDate}}</span>{{end}}
+        {{if .FX.UpdatedAt}}<span>更新于 {{.FX.UpdatedAt}}</span>{{end}}
+      </div>
+      {{if .FX.LastError}}<div class="text-warn">最近一次更新失败：{{.FX.LastError}}</div>{{end}}
+      <form method="post" action="/admin/settings/fx/refresh">
+        {{template "csrf" .}}
+        <button class="btn btn-sm">立即更新</button>
+      </form>
+    </div>
+
+    <form method="post" action="/admin/settings/fx" class="form-grid">
+      {{template "csrf" .}}
+      <div class="field field-full">
+        <label class="check-label">
+          <input type="checkbox" class="check" name="auto_update" value="1"{{if .FX.AutoUpdate}} checked{{end}}>
+          <strong>自动更新</strong>
+        </label>
+        <span class="field-help">后台每 12 小时从 open.er-api.com 拉取一次，失败时改用欧洲央行的数据。</span>
+      </div>
+
+      <div class="field field-full">
+        <span class="field-label">手动汇率</span>
+        <span class="field-help">手动汇率优先于自动更新的数据，不会被覆盖。数值的含义是 1 欧元可兑换多少该币种；清空某一项并保存即可移除。</span>
+        <div class="rate-list">
+          {{range .FX.Overrides}}
+          <label class="rate-row">
+            <span class="rate-code mono">1 EUR = ? {{.Code}}</span>
+            <input class="input mono" name="rate_{{.Code}}" value="{{.Rate}}" inputmode="decimal" aria-label="{{.Code}} 的手动汇率">
+            <span class="field-help">{{.Name}}，市场汇率 {{.Market}}</span>
+          </label>
+          {{end}}
+          <div class="rate-row">
+            <select class="select mono" name="new_code" aria-label="要设置手动汇率的币种">
+              <option value="">添加币种…</option>
+              {{range .FX.Currencies}}<option value="{{.Code}}"{{if eq .Code $.FX.NewCode}} selected{{end}}>{{.Code}} · {{.Name}}</option>
+              {{end}}
+            </select>
+            <input class="input mono" name="new_rate" value="{{.FX.NewRate}}" inputmode="decimal" placeholder="1 欧元 = ?" aria-label="手动汇率">
+          </div>
+        </div>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary">保存</button></div>
+    </form>
+  </section>
+
+  {{/* ---------- 邮件提醒 ---------- */}}
+  <section class="card settings-panel" data-settings-panel="email">
+    <h2 class="card-title">邮件提醒</h2>
+    <form method="post" action="/admin/settings/email" class="form-grid">
+      {{template "csrf" .}}
+      <div class="field field-full">
+        <label class="check-label">
+          <input type="checkbox" class="check" name="enabled" value="1"{{if .Email.Enabled}} checked{{end}}>
+          <strong>启用到期提醒</strong>
+        </label>
+        <span class="field-help">域名或 VPS 临近到期时发邮件提醒。服务每小时检查一次；停机期间错过的提醒会在恢复后补发。</span>
+      </div>
+
+      <div class="field col-6">
+        <label class="field-label" for="email_days">提前几天提醒</label>
+        <input class="input mono" id="email_days" name="days" value="{{.Email.Days}}" placeholder="30,7,1">
+        <span class="field-help">可填多个，用逗号分隔；0 表示到期当天。</span>
+      </div>
+      <div class="field col-6">
+        <label class="field-label" for="email_to">接收邮箱</label>
+        <input class="input mono" id="email_to" name="to" value="{{.Email.To}}" placeholder="me@example.com">
+        <span class="field-help">多个邮箱用逗号分隔。</span>
+      </div>
+
+      <h3 class="form-section">SMTP 服务器</h3>
+      <div class="field col-6">
+        <label class="field-label" for="email_host">服务器地址</label>
+        <input class="input mono" id="email_host" name="host" value="{{.Email.Host}}" placeholder="smtp.example.com">
+      </div>
+      <div class="field col-2 half">
+        <label class="field-label" for="email_port">端口</label>
+        <input class="input mono" id="email_port" name="port" value="{{.Email.Port}}" inputmode="numeric" placeholder="自动">
+      </div>
+      <div class="field col-4 half">
+        <label class="field-label" for="email_encryption">加密方式</label>
+        <select class="select" id="email_encryption" name="encryption">
+          <option value="auto"{{if eq .Email.Encryption "auto"}} selected{{end}}>自动</option>
+          <option value="starttls"{{if eq .Email.Encryption "starttls"}} selected{{end}}>STARTTLS（587）</option>
+          <option value="ssl"{{if eq .Email.Encryption "ssl"}} selected{{end}}>SSL / TLS（465）</option>
+          <option value="none"{{if eq .Email.Encryption "none"}} selected{{end}}>不加密</option>
+        </select>
+      </div>
+      <div class="field col-4">
+        <label class="field-label" for="email_username">用户名</label>
+        <input class="input mono" id="email_username" name="username" value="{{.Email.Username}}" autocomplete="off">
+      </div>
+      <div class="field col-4">
+        <label class="field-label" for="email_password">密码 / 授权码</label>
+        <input type="password" class="input" id="email_password" name="password" autocomplete="new-password" placeholder="{{if .Email.HasPassword}}已保存，留空则不修改{{end}}">
+        {{if .Email.HasPassword}}
+        <label class="check-label"><input type="checkbox" class="check" name="clear_password" value="1"> 清除已保存的密码</label>
+        {{end}}
+      </div>
+      <div class="field col-4">
+        <label class="field-label" for="email_auth">认证方式</label>
+        <select class="select" id="email_auth" name="auth">
+          <option value="plain"{{if eq .Email.Auth "plain"}} selected{{end}}>PLAIN（默认）</option>
+          <option value="login"{{if eq .Email.Auth "login"}} selected{{end}}>LOGIN（Outlook / 163 等）</option>
+        </select>
+      </div>
+      <div class="field field-full">
+        <label class="field-label" for="email_from">发件邮箱</label>
+        <input class="input mono" id="email_from" name="from" value="{{.Email.From}}" placeholder="留空则使用用户名">
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" name="action" value="save">保存</button>
+        <button class="btn" name="action" value="test">保存并发送测试邮件</button>
+      </div>
+    </form>
+  </section>
+
+  {{/* ---------- 备份 ---------- */}}
+  <section class="card settings-panel" data-settings-panel="backup">
+    <h2 class="card-title">备份与恢复</h2>
+    <p class="card-desc">备份是一个 JSON 文件，包含全部域名、VPS 和设置（含管理员密码的哈希，以及邮箱、WebDAV 的密码，请妥善保管）。恢复会用备份内容替换现有的全部域名和 VPS。</p>
+
+    <div class="form-grid">
+      <div class="field col-6">
+        <span class="field-label">下载备份</span>
+        <a class="btn btn-primary field-button" href="/admin/backup/export">下载备份文件</a>
+      </div>
+      <form method="post" action="/admin/backup/import" enctype="multipart/form-data" class="field col-6"
+            data-confirm="确定用这个备份文件替换现有的全部域名和 VPS 吗？此操作无法撤销。">
+        {{template "csrf" .}}
+        <label class="field-label" for="backup_file">从备份文件恢复</label>
+        <input type="file" class="input" id="backup_file" name="backup_file" accept="application/json,.json" required>
+        <label class="check-label"><input type="checkbox" class="check" name="restore_settings" value="1"> 同时恢复设置（包括管理员密码）</label>
+        <button class="btn btn-danger field-button">恢复</button>
+      </form>
+    </div>
+
+    <form method="post" action="/admin/backup/webdav" class="form-grid">
+      {{template "csrf" .}}
+      <h3 class="form-section">WebDAV</h3>
+      <div class="field col-8">
+        <label class="field-label" for="webdav_url">地址</label>
+        <input class="input mono" id="webdav_url" name="url" value="{{.WebDAV.URL}}" placeholder="https://dav.example.com/backup/">
+        <span class="field-help">可以是目录，也可以是完整的文件地址。</span>
+      </div>
+      <div class="field col-4">
+        <label class="field-label" for="webdav_filename">文件名</label>
+        <input class="input mono" id="webdav_filename" name="filename" value="{{.WebDAV.Filename}}" placeholder="mb-backup.json">
+        <span class="field-help">地址是目录时使用；备份时留空会按时间自动命名。</span>
+      </div>
+      <div class="field col-6">
+        <label class="field-label" for="webdav_username">用户名</label>
+        <input class="input mono" id="webdav_username" name="username" value="{{.WebDAV.Username}}" autocomplete="off">
+      </div>
+      <div class="field col-6">
+        <label class="field-label" for="webdav_password">密码</label>
+        <input type="password" class="input" id="webdav_password" name="password" autocomplete="new-password" placeholder="{{if .WebDAV.HasPassword}}已保存，留空则不修改{{end}}">
+        {{if .WebDAV.HasPassword}}
+        <label class="check-label"><input type="checkbox" class="check" name="clear_password" value="1"> 清除已保存的密码</label>
+        {{end}}
+      </div>
+      <div class="field field-full">
+        <label class="check-label"><input type="checkbox" class="check" name="restore_settings" value="1"> 从 WebDAV 恢复时同时恢复设置（包括管理员密码）</label>
+      </div>
+      <div class="form-actions">
+        <button class="btn" name="action" value="save">保存配置</button>
+        <button class="btn btn-primary" name="action" value="push">备份到 WebDAV</button>
+        <button class="btn btn-danger" name="action" value="pull" data-confirm="确定用 WebDAV 上的备份替换现有的全部域名和 VPS 吗？此操作无法撤销。">从 WebDAV 恢复</button>
+      </div>
+    </form>
+  </section>
+
+  {{/* ---------- 安全 ---------- */}}
+  <section class="card settings-panel" data-settings-panel="security">
+    <h2 class="card-title">修改管理员密码</h2>
+    {{if .PasswordFromEnv}}
+    <div class="info-box">
+      管理员密码由环境变量 <span class="mono">MB_ADMIN_PASSWORD</span> 管理，每次启动都会以它为准。要修改密码，请更改环境变量后重启服务。
+    </div>
+    {{else}}
+    <form method="post" action="/admin/settings/password" class="form-grid">
+      {{template "csrf" .}}
+      <div class="field col-4">
+        <label class="field-label" for="current_password">当前密码</label>
+        <input type="password" class="input" id="current_password" name="current_password" autocomplete="current-password" required>
+      </div>
+      <div class="field col-4">
+        <label class="field-label" for="new_password">新密码（至少 8 位）</label>
+        <input type="password" class="input" id="new_password" name="new_password" autocomplete="new-password" minlength="8" required>
+      </div>
+      <div class="field col-4">
+        <label class="field-label" for="confirm_password">再输入一次新密码</label>
+        <input type="password" class="input" id="confirm_password" name="confirm_password" autocomplete="new-password" required>
+      </div>
+      <p class="field-help field-full">修改密码后，其它设备上已登录的会话会立即失效。</p>
+      <div class="form-actions"><button class="btn btn-primary">更新密码</button></div>
+    </form>
+    {{end}}
+  </section>
+</div>
+{{end}}

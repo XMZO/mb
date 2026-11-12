@@ -1,68 +1,46 @@
+// mb 是一个自托管的域名 / VPS 资产面板。
+//
+// 用法:
+//
+//	mb               启动服务
+//	mb healthcheck   检查本机服务是否正常(供容器健康检查使用)
+//	mb version       打印版本号
 package main
 
 import (
-	"context"
 	"fmt"
-	"net"
-	"net/http"
+	"log"
 	"os"
-	"strings"
-	"time"
 
-	"mb/internal/mb"
+	_ "time/tzdata" // 内嵌时区数据:没有系统时区文件的最小镜像里,TZ 环境变量也能生效
+
+	"mb/internal/app"
+	"mb/internal/buildinfo"
+	"mb/internal/config"
 )
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
-		if err := runHealthcheck(); err != nil {
+	config.LoadDotEnv(".env")
+
+	command := "serve"
+	if len(os.Args) > 1 {
+		command = os.Args[1]
+	}
+
+	switch command {
+	case "serve":
+		if err := app.Run(); err != nil {
+			log.Fatal(err)
+		}
+	case "healthcheck":
+		if err := app.Healthcheck(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		return
+	case "version", "-v", "--version":
+		fmt.Println(buildinfo.DisplayVersion(), buildinfo.ShortCommit())
+	default:
+		fmt.Fprintf(os.Stderr, "unknown command %q\n\nusage: mb [serve|healthcheck|version]\n", command)
+		os.Exit(2)
 	}
-	mb.Run()
-}
-
-func runHealthcheck() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, healthcheckURL(), nil)
-	if err != nil {
-		return err
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
-		return fmt.Errorf("healthcheck failed: %s", resp.Status)
-	}
-	return nil
-}
-
-func healthcheckURL() string {
-	return "http://127.0.0.1:" + healthcheckPort(os.Getenv("MB_ADDR")) + "/login"
-}
-
-func healthcheckPort(addr string) string {
-	addr = strings.TrimSpace(addr)
-	if addr == "" {
-		return "15000"
-	}
-	_, port, err := net.SplitHostPort(addr)
-	if err == nil && port != "" {
-		return port
-	}
-	if strings.HasPrefix(addr, ":") {
-		port = strings.TrimPrefix(addr, ":")
-		if port != "" {
-			return port
-		}
-	}
-	if !strings.Contains(addr, ":") {
-		return addr
-	}
-	return "15000"
 }

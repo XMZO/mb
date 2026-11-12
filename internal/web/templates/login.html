@@ -1,0 +1,21 @@
+{{define "content"}}
+<div class="page page-tiny">
+  <section class="card stack">
+    <h1 class="page-title">管理员登录</h1>
+    <p class="muted">
+      {{- if .PublicMode}}当前为公开只读模式，登录后可以管理数据。
+      {{- else}}当前为私有模式，需要登录才能查看。
+      {{- end -}}
+    </p>
+    {{if .Error}}<div class="alert alert-error" role="alert">{{.Error}}</div>{{end}}
+    <form method="post" action="/login" class="stack">
+      {{template "csrf" .}}
+      <div class="field">
+        <label class="field-label" for="password">密码</label>
+        <input type="password" class="input" id="password" name="password" autocomplete="current-password" required autofocus>
+      </div>
+      <button class="btn btn-primary">登录</button>
+    </form>
+  </section>
+</div>
+{{end}}

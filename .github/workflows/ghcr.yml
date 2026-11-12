@@ -114,7 +114,7 @@ jobs:
           set -euo pipefail
           mkdir -p dist
           CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
-            go build -trimpath -ldflags="-s -w -buildid= -X=mb/internal/mb.appVersion=${APP_VERSION} -X=mb/internal/mb.appCommit=${APP_COMMIT}" -o "dist/${{ matrix.output }}" .
+            go build -trimpath -ldflags="-s -w -buildid= -X=mb/internal/buildinfo.Version=${APP_VERSION} -X=mb/internal/buildinfo.Commit=${APP_COMMIT}" -o "dist/${{ matrix.output }}" .
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
@@ -277,7 +277,7 @@ jobs:
           $env:CGO_ENABLED = "0"
           $env:GOOS = "windows"
           $env:GOARCH = "${{ matrix.goarch }}"
-          go build -trimpath -ldflags="-s -w -buildid= -X=mb/internal/mb.appVersion=$env:APP_VERSION -X=mb/internal/mb.appCommit=$env:APP_COMMIT" -o .docker-windows\mb.exe .
+          go build -trimpath -ldflags="-s -w -buildid= -X=mb/internal/buildinfo.Version=$env:APP_VERSION -X=mb/internal/buildinfo.Commit=$env:APP_COMMIT" -o .docker-windows\mb.exe .
 
       - name: Log in to GHCR
         if: steps.docker.outputs.available == 'true'

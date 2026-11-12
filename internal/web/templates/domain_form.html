@@ -1,0 +1,43 @@
+{{/* 域名的新增 / 编辑表单:一张居中的窄卡片,字段按 12 列网格排布,窄屏自动改为上下排列。 */}}
+{{define "content"}}
+<div class="page page-narrow">
+  <div class="page-head">
+    <h1 class="page-title">{{.Title}}</h1>
+    <a class="btn" href="/#domain">返回面板</a>
+  </div>
+
+  {{if .Error}}<div class="alert alert-error" role="alert">{{.Error}}</div>{{end}}
+
+  <form method="post" action="{{.Action}}" class="card form-grid">
+    {{template "csrf" .}}
+
+    <div class="field col-8">
+      <label class="field-label" for="domain">域名</label>
+      <input class="input mono" id="domain" name="domain" value="{{.Form.Name}}" placeholder="example.com" required{{if not .ID}} autofocus{{end}}>
+    </div>
+    <div class="field col-4">
+      <label class="field-label" for="registrar">注册商</label>
+      <input class="input" id="registrar" name="registrar" value="{{.Form.Registrar}}" placeholder="Cloudflare / NameSilo …">
+    </div>
+
+    <div class="col-6">{{template "expiry-field" .}}</div>
+    <div class="col-6">
+      {{template "price-field" .}}
+      <span class="field-help">每年的续费价格，免费填 0。</span>
+    </div>
+
+    <div class="field field-full">
+      <label class="field-label" for="notes">备注</label>
+      <textarea class="input" id="notes" name="notes" rows="2" placeholder="用途、所属项目、DNS 托管等">{{.Form.Notes}}</textarea>
+    </div>
+
+    {{template "flag-options" .}}
+
+    <div class="form-actions">
+      <button class="btn btn-primary">保存</button>
+      <a class="btn" href="/#domain">取消</a>
+      {{if .ID}}<button type="button" class="btn btn-danger form-delete" data-delete-asset="domain" data-id="{{.ID}}" data-title="{{.Form.Name}}">删除</button>{{end}}
+    </div>
+  </form>
+</div>
+{{end}}
