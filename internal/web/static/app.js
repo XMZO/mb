@@ -1,7 +1,7 @@
 // MB 资产面板的前端脚本,不依赖任何第三方库。
 //
 // 页面由服务端渲染,这里只负责交互:
-//   - 通用:主题、轻提示、确认对话框、复制、带确认的表单
+//   - 通用:主题、轻提示、确认对话框、复制、带确认的表单、位移动画
 //   - 面板:到期筛选 / 搜索 / 排序,点击小块弹出管理面板,批量模式,拖拽排序,续费与导出对话框
 //   - 表单页:永久开关、硬盘行的增删、删除按钮
 //   - 设置页:分类切换
@@ -59,9 +59,11 @@
   function toast(message, kind = 'info') {
     const el = $('#toast');
     if (!el) return;
+    const showing = el.classList.contains('is-visible');
     el.textContent = message;
     el.dataset.kind = kind;
     el.classList.add('is-visible');
+    if (showing) play(el, [{ scale: 1.04 }, { scale: 1 }], 220); // 上一条还没消失就换了内容,提示这是新消息
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.classList.remove('is-visible'), kind === 'error' ? 5000 : 2200);
   }
@@ -182,6 +184,93 @@
     window.scrollTo({ top: Number(saved) || 0, behavior: 'instant' });
   }
 
+  // ---------- 动画 ----------
+  //
+  // 悬停、按下、对话框与操作条的进出等由 app.css 完成;这里只做需要知道"之前在哪儿"的动画。
+  // 所有动画只改 transform / opacity,不影响排版;系统开启了"减少动态效果"时一律跳过。
+
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const EASE = 'cubic-bezier(.2, .8, .2, 1)'; // 与 app.css 的 --ease 一致
+
+  function canAnimate() {
+    return !reducedMotion.matches && !document.hidden && typeof Element.prototype.animate === 'function';
+  }
+
+  // 播放一段一次性的动画,不能播放时什么也不做。
+  function play(node, keyframes, duration = 240, options = {}) {
+    if (!node || !canAnimate()) return null;
+    return node.animate(keyframes, { duration, easing: EASE, ...options });
+  }
+
+  // 是否在屏幕内或附近(上下各多算半屏)。屏幕外的元素不做动画,长列表也不会卡。
+  function nearViewport(rect) {
+    const margin = window.innerHeight / 2;
+    return rect.width > 0 && rect.bottom > -margin && rect.top < window.innerHeight + margin;
+  }
+
+  // FLIP 位移动画:change() 之前记下各元素在屏幕上的位置,之后让它们从旧位置滑到新位置,
+  // 新出现的原地淡入。这样排序、筛选、置顶、删除时,小块是"移过去"的,而不是一下子跳过去。
+  //   nodes  返回参与动画的元素。change 前后各调用一次,所以 change 里可以整个替换 DOM;
+  //   keyOf  在替换前后认出同一条记录。
+  // 上一次的动画还没走完就再次调用时,从现在看到的位置接着走,不会跳。
+  function flip(nodes, keyOf, change, { fadeIn = true } = {}) {
+    if (!canAnimate()) {
+      change();
+      return;
+    }
+    const before = new Map();
+    nodes().forEach((node) => {
+      const rect = node.getBoundingClientRect(); // 包含进行中的位移,也就是现在看到的位置
+      if (nearViewport(rect)) before.set(keyOf(node), rect);
+    });
+
+    change();
+
+    const after = nodes();
+    after.forEach((node) => {
+      if (!node.flip) return;
+      node.flip.cancel(); // 先停下进行中的位移,才量得到真正的新位置
+      node.flip = null;
+    });
+    // 先全部量完再开始动画,中间不穿插样式计算
+    const moves = [];
+    const moving = new Set();
+    after.forEach((node) => {
+      // 外层元素已经在移动时,里面的元素跟着走,不再单独移动(否则会走双倍的距离)
+      for (let parent = node.parentElement; parent; parent = parent.parentElement) {
+        if (moving.has(parent)) return;
+      }
+      const rect = node.getBoundingClientRect();
+      if (!nearViewport(rect)) return;
+      const old = before.get(keyOf(node));
+      if (old && Math.abs(old.top - rect.top) < window.innerHeight) {
+        // 按中心点对齐:旧位置可能正处在淡入的缩放中,中心点才是它真正的位置。
+        // 水平方向限制在父元素以内,移动途中也不会伸出列表、撑出横向滚动条。
+        const box = node.parentElement.getBoundingClientRect();
+        const dx = Math.min(
+          Math.max(old.left + old.width / 2 - (rect.left + rect.width / 2), box.left - rect.left),
+          box.right - rect.right,
+        );
+        const dy = old.top + old.height / 2 - (rect.top + rect.height / 2);
+        if (Math.abs(dx) >= 1 || Math.abs(dy) >= 1) {
+          moves.push([node, [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], 320]);
+          moving.add(node);
+        }
+      } else if (old || fadeIn) {
+        // 新出现的,或者从一屏以外过来的(飞过整个屏幕反而看不清):原地淡入
+        moves.push([node, [{ opacity: 0, transform: 'scale(.96)' }, { opacity: 1, transform: 'none' }], 220]);
+        moving.add(node);
+      }
+    });
+    moves.forEach(([node, keyframes, duration]) => {
+      const animation = node.animate(keyframes, { duration, easing: EASE });
+      node.flip = animation;
+      animation.onfinish = () => {
+        if (node.flip === animation) node.flip = null;
+      };
+    });
+  }
+
   // ---------- 通用交互 ----------
 
   function initTheme() {
@@ -193,9 +282,14 @@
     };
     showLabel();
     button.addEventListener('click', () => {
-      root.dataset.theme = root.dataset.theme === 'light' ? 'dark' : 'light';
-      prefs.set('mb.theme', root.dataset.theme);
-      showLabel();
+      const apply = () => {
+        root.dataset.theme = root.dataset.theme === 'light' ? 'dark' : 'light';
+        prefs.set('mb.theme', root.dataset.theme);
+        showLabel();
+      };
+      // 支持 View Transitions 的浏览器里新旧配色交叉淡入,其余的直接切换
+      if (document.startViewTransition && canAnimate()) document.startViewTransition(apply);
+      else apply();
     });
   }
 
@@ -378,6 +472,10 @@
       empty: $('[data-role="empty"]', section),
     }));
     let allTiles = [];
+    const keyOf = (tile) => `${tile.kind}:${tile.dataset.id}`; // 局部刷新会换掉小块的 DOM,用它认出同一条记录
+
+    // 改变小块的显示、顺序时用:小块滑到新位置,新出现的淡入
+    const animateTiles = (change) => flip(() => allTiles, keyOf, change);
 
     // 从页面上读出各组的小块。首次加载和局部刷新之后都会调用。
     function collectTiles() {
@@ -414,6 +512,8 @@
     if (!$$('option', el.sort).some((option) => option.value === state.sort)) state.sort = 'manual';
 
     // 到期状态的数量:数字既是统计,也是筛选按钮。数量为 0 的状态不显示。
+    // 局部刷新后数字有变化时跳一下,让人注意到(首次填入时不跳)。
+    let countsShown = false;
     function updateCounts() {
       const counts = { all: allTiles.length, expired: 0, d30: 0, d90: 0 };
       allTiles.forEach((tile) => {
@@ -423,9 +523,15 @@
       });
       el.filters.forEach((button) => {
         const key = button.dataset.filter;
-        $('b', button).textContent = counts[key];
+        const number = $('b', button);
+        const text = String(counts[key]);
+        if (number.textContent !== text) {
+          number.textContent = text;
+          if (countsShown) play(number, [{ transform: 'scale(1.35)' }, { transform: 'none' }], 320);
+        }
         button.hidden = key !== 'all' && counts[key] === 0;
       });
+      countsShown = true;
       // 当前选中的状态已经没有记录了(例如最后一个过期的刚续了费),回到"全部"
       if (!el.filters.some((button) => button.dataset.filter === state.filter && !button.hidden)) state.filter = 'all';
     }
@@ -501,19 +607,21 @@
     el.search.value = state.query;
     el.search.addEventListener('input', () => {
       state.query = el.search.value.trim().toLowerCase();
-      render();
+      animateTiles(render);
     });
     el.filters.forEach((button) => {
       button.addEventListener('click', () => {
         state.filter = button.dataset.filter;
-        render();
+        animateTiles(render);
       });
     });
     el.sort.value = state.sort;
     el.sort.addEventListener('change', () => {
       state.sort = el.sort.value;
-      reorder();
-      render();
+      animateTiles(() => {
+        reorder();
+        render();
+      });
     });
 
     // 统计币种的下拉框在概览里;概览会被局部刷新整块替换,所以用事件委托。
@@ -541,10 +649,8 @@
 
     // 操作成功后的局部刷新:在后台重新取一次面板,只替换概览和小块。
     // 剩余天数、折算金额、年度总额、排序位置都以服务端算出的为准,前端不重复实现这些规则;
-    // 当前的搜索、筛选、排序、批量选择和滚动位置都保持不变。changed 里的小块会短暂高亮。
+    // 当前的搜索、筛选、排序、批量选择和滚动位置都保持不变。小块滑到新位置,changed 里的短暂高亮。
     // 页面结构对不上(例如登录已失效)时抛出错误,由调用方退回整页刷新。
-    const keyOf = (tile) => `${tile.kind}:${tile.dataset.id}`;
-
     async function refreshBoard(changed = new Set()) {
       const response = await fetch(window.location.pathname, {
         credentials: 'same-origin',
@@ -559,21 +665,31 @@
       if (groups.some((group, i) => !group.list !== !lists[i])) throw new Error('layout changed');
 
       const keepSelected = new Set([...selected].map(keyOf));
-      $('.summary', board).replaceWith(document.adoptNode($('.summary', fresh)));
-      groups.forEach((group, i) => {
-        // 先复制成普通数组:adoptNode 会把节点从原来的列表里移走,直接遍历 children 会跳过一半
-        if (group.list) group.list.replaceChildren(...[...lists[i].children].map((node) => document.adoptNode(node)));
+      const oldStats = $$('.stat-value', board).map((node) => node.textContent);
+      animateTiles(() => {
+        $('.summary', board).replaceWith(document.adoptNode($('.summary', fresh)));
+        groups.forEach((group, i) => {
+          // 先复制成普通数组:adoptNode 会把节点从原来的列表里移走,直接遍历 children 会跳过一半
+          if (group.list) group.list.replaceChildren(...[...lists[i].children].map((node) => document.adoptNode(node)));
+        });
+
+        collectTiles();
+        selected.clear();
+        allTiles.forEach((tile) => {
+          if (keepSelected.has(keyOf(tile))) selected.add(tile);
+        });
+        updateCounts();
+        reorder();
+        render();
+        refit();
       });
 
-      collectTiles();
-      selected.clear();
-      allTiles.forEach((tile) => {
-        if (keepSelected.has(keyOf(tile))) selected.add(tile);
+      // 概览里变化了的数字(年度总额等)从上方浮现
+      $$('.stat-value', board).forEach((node, i) => {
+        if (i < oldStats.length && node.textContent !== oldStats[i]) {
+          play(node, [{ opacity: 0.2, transform: 'translateY(-4px)' }, { opacity: 1, transform: 'none' }], 360);
+        }
       });
-      updateCounts();
-      reorder();
-      render();
-      refit();
 
       allTiles.forEach((tile) => {
         if (!changed.has(keyOf(tile))) return;
@@ -651,6 +767,9 @@
         if (selected.has(tile)) selected.delete(tile);
         else selected.add(tile);
         renderSelection();
+        if (selected.has(tile)) {
+          play($('.tile-check', tile), [{ transform: 'scale(.7)' }, { transform: 'scale(1.15)' }, { transform: 'none' }], 260);
+        }
       });
       board.addEventListener('keydown', (event) => {
         if ((event.key === 'Enter' || event.key === ' ') && event.target.matches('.tile[role="button"]')) {
@@ -753,11 +872,25 @@
       function setSelecting(on) {
         selecting = on;
         if (!on) selected.clear();
-        document.documentElement.toggleAttribute('data-selecting', on);
-        el.selectToggle.setAttribute('aria-pressed', String(on));
-        el.selectToggle.textContent = on ? '退出批量' : '批量';
-        el.selectionBar.hidden = !on;
-        render();
+        // 勾选框会占掉一点宽度,个别长名称可能因此多折一行、把整排撑高,所以进出批量模式时
+        // 重新决定列数(一般不变,只在需要时少一列)。小块滑到新位置;位置没变的小块里,
+        // 名称让出勾选框的位置时也是滑过去的。
+        const nodes = () => [...allTiles, ...allTiles.map((tile) => $('.tile-name', tile)).filter(Boolean)];
+        flip(nodes, (node) => node, () => {
+          document.documentElement.toggleAttribute('data-selecting', on);
+          el.selectToggle.setAttribute('aria-pressed', String(on));
+          el.selectToggle.textContent = on ? '退出批量' : '批量';
+          el.selectionBar.hidden = !on;
+          render();
+          refit();
+        }, { fadeIn: false });
+        if (!on || !canAnimate()) return;
+        allTiles.forEach((tile) => {
+          const check = tile.hidden ? null : $('.tile-check', tile);
+          if (check && nearViewport(check.getBoundingClientRect())) {
+            play(check, [{ opacity: 0, transform: 'scale(.4)' }, { opacity: 1, transform: 'none' }], 240);
+          }
+        });
       }
 
       el.selectToggle.addEventListener('click', () => setSelecting(!selecting));
@@ -847,13 +980,17 @@
           const target = event.target.closest('.tile');
           if (!target || target === dragging || target.dataset.pinned !== dragging.dataset.pinned) return;
           event.preventDefault();
+          // 正在滑开的小块位置还没定下来,等它停稳再判断,否则会来回抖动
+          if (target.flip && target.flip.playState === 'running') return;
           // 同一排的小块按左右半区判断,不同排的按上下半区判断。
           const box = target.getBoundingClientRect();
           const sameRow = Math.abs(box.top - dragging.getBoundingClientRect().top) < box.height / 2;
           const after = sameRow
             ? event.clientX > box.left + box.width / 2
             : event.clientY > box.top + box.height / 2;
-          group.list.insertBefore(dragging, after ? target.nextSibling : target);
+          const before = after ? target.nextSibling : target;
+          if (before === dragging || dragging.nextSibling === before) return; // 位置没有变化
+          flip(() => group.tiles, (tile) => tile, () => group.list.insertBefore(dragging, before), { fadeIn: false });
         });
 
         group.list.addEventListener('drop', (event) => {
@@ -924,14 +1061,21 @@
             return;
           }
           diskRows.appendChild(template.content.cloneNode(true));
-          $('input', diskRows.lastElementChild).focus();
+          const added = diskRows.lastElementChild;
+          play(added, [{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], 200);
+          $('input', added).focus();
           return;
         }
         const remove = event.target.closest('[data-action="remove-disk"]');
         if (!remove) return;
         const row = remove.closest('.disk-row');
-        if (diskRows.children.length > 1) {
-          row.remove();
+        if (row.dataset.removing) return; // 正在淡出
+        const rows = $$('.disk-row', diskRows).filter((item) => !item.dataset.removing);
+        if (rows.length > 1) {
+          row.dataset.removing = '1';
+          const fade = play(row, [{ opacity: 1 }, { opacity: 0, transform: 'translateY(-4px)' }], 150, { fill: 'forwards' });
+          if (fade) fade.onfinish = () => row.remove();
+          else row.remove();
         } else {
           // 只剩一行时清空内容,保留输入框
           $$('input, select', row).forEach((field) => {
