@@ -368,24 +368,31 @@
     const admin = board.hasAttribute('data-admin');
 
     // 域名、VPS 各是一组;搜索、筛选、排序同时作用于两组。
-    const groups = $$('.group[data-kind]', board).map((section) => {
-      const list = $('[data-role="tiles"]', section);
-      const tiles = list ? $$('.tile', list) : [];
-      tiles.forEach((tile, index) => {
-        tile.kind = section.dataset.kind;
-        tile.manualIndex = index; // 在"默认顺序"(服务端给出的顺序)中的位置
+    const groups = $$('.group[data-kind]', board).map((section) => ({
+      kind: section.dataset.kind,
+      list: $('[data-role="tiles"]', section),
+      tiles: [],
+      ordered: [], // 按当前排序排列
+      matched: [], // 其中符合搜索与筛选条件的
+      count: $('[data-role="count"]', section),
+      empty: $('[data-role="empty"]', section),
+    }));
+    let allTiles = [];
+
+    // 从页面上读出各组的小块。首次加载和局部刷新之后都会调用。
+    function collectTiles() {
+      groups.forEach((group) => {
+        group.tiles = group.list ? $$('.tile', group.list) : [];
+        group.tiles.forEach((tile, index) => {
+          tile.kind = group.kind;
+          tile.manualIndex = index; // 在"默认顺序"(服务端给出的顺序)中的位置
+        });
+        group.ordered = group.tiles;
+        group.matched = group.tiles;
       });
-      return {
-        kind: section.dataset.kind,
-        list,
-        tiles,
-        ordered: tiles, // 按当前排序排列
-        matched: tiles, // 其中符合搜索与筛选条件的
-        count: $('[data-role="count"]', section),
-        empty: $('[data-role="empty"]', section),
-      };
-    });
-    const allTiles = groups.flatMap((group) => group.tiles);
+      allTiles = groups.flatMap((group) => group.tiles);
+    }
+    collectTiles();
 
     const el = {
       search: $('[data-role="search"]', board),
@@ -407,18 +414,22 @@
     if (!$$('option', el.sort).some((option) => option.value === state.sort)) state.sort = 'manual';
 
     // 到期状态的数量:数字既是统计,也是筛选按钮。数量为 0 的状态不显示。
-    const counts = { all: allTiles.length, expired: 0, d30: 0, d90: 0 };
-    allTiles.forEach((tile) => {
-      Object.keys(dueFilters).forEach((key) => {
-        if (dueFilters[key](daysOf(tile))) counts[key] += 1;
+    function updateCounts() {
+      const counts = { all: allTiles.length, expired: 0, d30: 0, d90: 0 };
+      allTiles.forEach((tile) => {
+        Object.keys(dueFilters).forEach((key) => {
+          if (dueFilters[key](daysOf(tile))) counts[key] += 1;
+        });
       });
-    });
-    el.filters.forEach((button) => {
-      const key = button.dataset.filter;
-      $('b', button).textContent = counts[key];
-      button.hidden = key !== 'all' && counts[key] === 0;
-    });
-    if (!el.filters.some((button) => button.dataset.filter === state.filter && !button.hidden)) state.filter = 'all';
+      el.filters.forEach((button) => {
+        const key = button.dataset.filter;
+        $('b', button).textContent = counts[key];
+        button.hidden = key !== 'all' && counts[key] === 0;
+      });
+      // 当前选中的状态已经没有记录了(例如最后一个过期的刚续了费),回到"全部"
+      if (!el.filters.some((button) => button.dataset.filter === state.filter && !button.hidden)) state.filter = 'all';
+    }
+    updateCounts();
 
     let selecting = false; // 是否处于批量模式
     const selected = new Set();
@@ -505,9 +516,10 @@
       render();
     });
 
-    const baseCurrency = $('[data-role="base-currency"]', board);
-    baseCurrency.addEventListener('change', () => {
-      window.location.href = '/?base=' + encodeURIComponent(baseCurrency.value);
+    // 统计币种的下拉框在概览里;概览会被局部刷新整块替换,所以用事件委托。
+    board.addEventListener('change', (event) => {
+      if (!event.target.matches('[data-role="base-currency"]')) return;
+      window.location.href = '/?base=' + encodeURIComponent(event.target.value);
     });
 
     if (admin) bindAdminActions();
@@ -527,23 +539,97 @@
     }).observe(board);
     if (document.fonts) document.fonts.ready.then(refit);
 
+    // 操作成功后的局部刷新:在后台重新取一次面板,只替换概览和小块。
+    // 剩余天数、折算金额、年度总额、排序位置都以服务端算出的为准,前端不重复实现这些规则;
+    // 当前的搜索、筛选、排序、批量选择和滚动位置都保持不变。changed 里的小块会短暂高亮。
+    // 页面结构对不上(例如登录已失效)时抛出错误,由调用方退回整页刷新。
+    const keyOf = (tile) => `${tile.kind}:${tile.dataset.id}`;
+
+    async function refreshBoard(changed = new Set()) {
+      const response = await fetch(window.location.pathname, {
+        credentials: 'same-origin',
+        headers: { Accept: 'text/html' },
+      });
+      if (!response.ok || response.redirected) throw new Error('refresh failed');
+      const doc = new DOMParser().parseFromString(await response.text(), 'text/html');
+      const fresh = $('[data-role="board"]', doc);
+      if (!fresh || fresh.hasAttribute('data-admin') !== admin) throw new Error('unexpected page');
+
+      const lists = groups.map((group) => $(`.group[data-kind="${group.kind}"] [data-role="tiles"]`, fresh));
+      if (groups.some((group, i) => !group.list !== !lists[i])) throw new Error('layout changed');
+
+      const keepSelected = new Set([...selected].map(keyOf));
+      $('.summary', board).replaceWith(document.adoptNode($('.summary', fresh)));
+      groups.forEach((group, i) => {
+        // 先复制成普通数组:adoptNode 会把节点从原来的列表里移走,直接遍历 children 会跳过一半
+        if (group.list) group.list.replaceChildren(...[...lists[i].children].map((node) => document.adoptNode(node)));
+      });
+
+      collectTiles();
+      selected.clear();
+      allTiles.forEach((tile) => {
+        if (keepSelected.has(keyOf(tile))) selected.add(tile);
+      });
+      updateCounts();
+      reorder();
+      render();
+      refit();
+
+      allTiles.forEach((tile) => {
+        if (!changed.has(keyOf(tile))) return;
+        tile.classList.add('is-updated');
+        tile.addEventListener('animationend', () => tile.classList.remove('is-updated'), { once: true });
+      });
+    }
+
     // ---- 以下仅管理员可用 ----
 
     function bindAdminActions() {
       const renewal = createRenewalDialog();
       const kindLabel = (tile) => (tile.kind === 'domain' ? '域名' : 'VPS');
 
-      // 对若干小块执行同一个操作(域名与 VPS 分别调用各自的接口),成功后刷新页面。
+      const doneMessages = {
+        extend: '已续费',
+        renew: '已更新到期时间',
+        pin: '已置顶',
+        unpin: '已取消置顶',
+        hide: '已对访客隐藏',
+        unhide: '已取消隐藏',
+        exclude_cost: '已设为不计入成本',
+        include_cost: '已计入成本',
+        billing_months: '已更新付费周期',
+        delete: '已删除',
+      };
+
+      // 对若干小块执行同一个操作(域名与 VPS 分别调用各自的接口),然后局部刷新面板。
       async function run(tiles, action, value = '') {
+        let failure = null;
+        let succeeded = 0;
         try {
           for (const group of groups) {
             const ids = idsOf(tiles.filter((tile) => tile.kind === group.kind));
             if (!ids.length || (action === 'billing_months' && group.kind !== 'vps')) continue;
             await api(`/api/${group.kind}/batch`, { ids, action, value });
+            succeeded += 1;
           }
-          reloadKeepingPosition();
         } catch (error) {
-          toast(error.message, 'error');
+          failure = error;
+        }
+        if (failure && succeeded === 0) {
+          toast(failure.message, 'error'); // 什么都没改(例如登录已失效),不必刷新,保留页面让用户看到提示
+          return;
+        }
+        // 走到这里说明至少有一组成功了(域名成功、VPS 失败也算),刷新让页面反映真实状态
+        try {
+          await refreshBoard(new Set(tiles.map(keyOf)));
+        } catch {
+          reloadKeepingPosition(); // 局部刷新不成功时退回整页刷新
+          return;
+        }
+        if (failure) {
+          toast(failure.message, 'error');
+        } else {
+          toast(tiles.length > 1 ? `${doneMessages[action]} ${tiles.length} 项` : doneMessages[action]);
         }
       }
 

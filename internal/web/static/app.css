@@ -878,6 +878,18 @@ a.stat:hover .stat-value {
   background: var(--surface);
 }
 
+/* 刚被操作过的小块短暂高亮,方便找到它(例如置顶后移到了最前面) */
+@keyframes tile-updated {
+  from {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+}
+
+.tile.is-updated {
+  animation: tile-updated 1.6s ease-out;
+}
+
 /* 置顶:左侧一条强调色 */
 .tile.is-pinned {
   box-shadow: inset 3px 0 0 var(--accent);
@@ -1381,5 +1393,6 @@ html[data-selecting] .main {
 
   * {
     transition: none !important;
+    animation-duration: 1ms !important;
   }
 }
